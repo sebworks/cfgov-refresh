@@ -192,12 +192,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!--[if gt IE 8]><!-->
 {# Include site-wide JavaScript. #}
 <script>
-    {% include '/js/routes/common.js' %}
+    {% include '/js/routes/common.js' ignore missing %}
 </script>
 {# Remove after sheer has been completely phased out #}
 {% if not page %}
 <script>
-    {% include '/js/routes/sheer.js' %}
+    {% include '/js/routes/sheer.js' ignore missing %}
 </script>
 {% endif %}
 

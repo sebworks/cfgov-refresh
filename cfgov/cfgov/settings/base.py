@@ -51,6 +51,7 @@ INSTALLED_APPS = (
     'modelcluster',
     'compressor',
     'taggit',
+    'wagtailinventory',
     'wagtailsharing',
 
     'overextends',

@@ -1,0 +1,42 @@
+{% extends 'layout-2-1-bleedbar.html' %}
+
+{% import 'macros/time.html' as time %}
+
+{% block content_main_modifiers -%}
+    {{ super() }} content__flush-bottom
+{%- endblock %}
+
+{% block content_main %}
+
+{% import 'molecules/social-media.html' as social_media with context %}
+    <section class="block
+                    block__flush-top
+                    block__sub">
+        <h1>{{ page.ask_category.name }}</h1>
+    </section>
+
+    <section class="block
+                    block__padded-top
+                    block__border-top">
+    <ul>
+    {% for subcat in page.ask_category.subcategories.all() %}
+    <li>{{ subcat }}</li>
+    {% endfor %}
+
+    </ul>
+    </section>
+
+
+
+{% endblock %}
+
+{% block content_sidebar_modifiers -%}
+    o-sidebar-content
+{%- endblock %}
+
+{% block content_sidebar scoped  %}
+<div class="block block__flush-top">
+</div>
+<p data-qa-hook="info-section-desc">
+</p>
+{% endblock %}

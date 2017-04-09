@@ -56,8 +56,6 @@ class Category(models.Model):
     slug_es = models.SlugField()
     intro = RichTextField(blank=True)
     intro_es = RichTextField(blank=True)
-    featured_questions = models.ManyToManyField(
-        'Answer', blank=True, related_name='featured_questions')
     panels = [
         FieldPanel('name', classname="title"),
         FieldPanel('slug'),
@@ -65,11 +63,15 @@ class Category(models.Model):
         FieldPanel('name_es', classname="title"),
         FieldPanel('slug_es'),
         FieldPanel('intro_es'),
-        FieldPanel('featured_questions'),
     ]
 
     def __str__(self):
         return self.name
+
+    def featured_answers(self):
+        return Answer.objects.filter(
+            category=self,
+            featured=True).order_by('featured_rank')
 
     class Meta:
         ordering = ['name']
@@ -86,6 +88,11 @@ class Answer(models.Model):
     snippet = RichTextField(blank=True, help_text="Optional answer intro")
     answer = RichTextField(blank=True)
     slug = models.SlugField(max_length=255, blank=True)
+    featured = models.BooleanField(
+        default=False,
+        help_text="Makes the answer available to cards on the landing page")
+    featured_rank = models.IntegerField(blank=True, null=True)
+
     question_es = models.TextField(
         blank=True,
         verbose_name="Spanish question")
@@ -151,7 +158,7 @@ class Answer(models.Model):
     def available_subcategories(self):
         subcats = []
         for parent in self.category.all():
-            subcats += list(parent.subcategory_set.all())
+            subcats += list(parent.subcategories.all())
         return subcats
 
     panels = [
@@ -177,6 +184,9 @@ class Answer(models.Model):
             heading="Spanish",
             classname="collapsible"),
         MultiFieldPanel([
+            FieldRowPanel([
+                FieldPanel('featured'),
+                FieldPanel('featured_rank')]),
             FieldPanel('audiences', widget=forms.CheckboxSelectMultiple),
             FieldPanel('next_step'),
             FieldPanel('category', widget=forms.CheckboxSelectMultiple),
@@ -313,7 +323,6 @@ class SubCategory(models.Model):
     name_es = models.CharField(max_length=255, null=True, blank=True)
     slug = models.SlugField()
     slug_es = models.SlugField(null=True, blank=True)
-    featured = models.BooleanField(default=False)
     weight = models.IntegerField(default=1)
     description = RichTextField(blank=True)
     description_es = RichTextField(blank=True)
@@ -322,7 +331,8 @@ class SubCategory(models.Model):
         Category,
         null=True,
         blank=True,
-        default=None)
+        default=None,
+        related_name='subcategories')
     related_subcategories = models.ManyToManyField(
         'self',
         blank=True,

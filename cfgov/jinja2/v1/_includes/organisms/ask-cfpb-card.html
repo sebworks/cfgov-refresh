@@ -1,0 +1,31 @@
+{# ==========================================================================
+
+   Ask CFPB Card
+
+   ==========================================================================
+
+   Description:
+
+   Creates a category card for the Ask CFPB landing page when given:
+
+   category:       A parent category for Ask CFPB answers.
+
+   ========================================================================== #}
+<aside class="m-ask-card"
+       data-qa-hook="card-section">
+    <h3>
+        <a href="/ask-cfpb/category-{{ category.slug }}/">{{ category.name }}</a> 
+    </h2>
+    <ul class="list list__unstyled">
+        {% for answer in category.featured_answers() %}
+        <li class="list_item">
+            <a class="list_link"
+               href="{{ answer.answer_pages.get(language='en').url }}"><span class="unstyled">{{ answer.question }}</span> <span class="styled">Read answer</span></a>  
+        </li>
+        {% endfor %}
+    </ul>
+    <p>
+        <a href="/ask-cfpb/category-{{ category.slug }}/">See all {{ category.name }} questions</a>  
+    </p>
+
+</aside>

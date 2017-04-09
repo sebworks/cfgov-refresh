@@ -6,14 +6,57 @@ from django.utils.translation import ugettext_lazy as _
 
 from wagtail.wagtailadmin.edit_handlers import (
     FieldPanel,
+    StreamFieldPanel,
     ObjectList,
     TabbedInterface)
 from wagtail.wagtailcore.fields import RichTextField
 from wagtail.wagtailcore.models import Page, PageManager
 from wagtail.wagtailsearch import index
+from wagtail.wagtailcore.fields import StreamField
 
-from v1.models import CFGOVPage
-# from ask_cfpb.models import Answer
+from v1.models import CFGOVPage, LandingPage
+from v1.atomic_elements.organisms import AskCategoryCard
+
+
+class AnswerLandingPage(LandingPage):
+    """
+    Page type for Ask CFPB's landing page.
+    """
+    cards = StreamField([
+        ('cards', AskCategoryCard()),
+    ], blank=True)
+    content_panels = [
+        StreamFieldPanel('header'),
+        StreamFieldPanel('content'),
+        StreamFieldPanel('cards'),
+    ]
+    edit_handler = TabbedInterface([
+        ObjectList(content_panels, heading='Content'),
+    ])
+    objects = PageManager()
+    template = 'ask-cfpb/landing-page.html'
+
+
+class AnswerCategoryPage(CFGOVPage):
+    """
+    Page type for Ask CFPB parent-category pages.
+    """
+    from .django import Category
+    objects = PageManager()
+    ask_category = models.ForeignKey(
+        Category,
+        blank=True,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name='category_page')
+    content_panels = CFGOVPage.content_panels + [
+        FieldPanel('ask_category', Category),
+    ]
+    edit_handler = TabbedInterface([
+        ObjectList(content_panels, heading='Content'),
+        ObjectList(CFGOVPage.settings_panels, heading='Configuration'),
+    ])
+    template = 'ask-cfpb/category-page.html'
 
 
 class AnswerPage(CFGOVPage):
@@ -54,7 +97,7 @@ class AnswerPage(CFGOVPage):
         ObjectList(CFGOVPage.settings_panels, heading='Configuration'),
     ])
 
-    template = 'ask-answer-page/index.html'
+    template = 'ask-cfpb/answer-page.html'
     objects = PageManager()
 
     def __str__(self):

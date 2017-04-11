@@ -15,6 +15,7 @@
             <div class="block
                         block__flush-top">
                 {% import 'organisms/filterable-list-controls.html' as flc with context %}
+                {{block.value}}
                 {{ flc.render(block.value, loop.index0) }}
             </div>
         {% else %}

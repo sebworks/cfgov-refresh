@@ -13,12 +13,13 @@ defineSupportCode( function( { Then, When } ) {
    	wagtailLoginPage.gotoURL();
   } );
 
-  When( 'I enter my login criteria', function () {
+  When( 'I enter my login criteria', function ( ) {
    	wagtailLoginPage.enterLoginCriteria();
   } );
 
   When( 'I should be able to access the admin section', function ( ) {
-  	wagtailLoginPage.loginBtn.click();
+    wagtailLoginPage.loginBtn.click();
+
   	return browser.getCurrentUrl().then( function( url ) {
   		expect( url ).to.contain( '/admin' )
   	} )

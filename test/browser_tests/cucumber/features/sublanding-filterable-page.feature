@@ -9,3 +9,10 @@ Feature: Filterable
   	Then I should see the first result
   	Then I should see the last result
   	Then I should see the right number of results
+
+  Scenario: Browse filterable page
+  	Given I goto a sublanding filterable page
+  	When I havent select a filter
+  	Then I should see the first result
+  	Then I should see the last result
+  	Then I should see the right number of results

@@ -51,7 +51,7 @@ class AbstractFilterPage(CFGOVPage):
 
     # Configuration tab panels
     settings_panels = [
-        MultiFieldPanel(Page.promote_panels, 'Settings'),
+        MultiFieldPanel(CFGOVPage.promote_panels, 'Settings'),
         InlinePanel('categories', label="Categories", max_num=2),
         FieldPanel('tags', 'Tags'),
         MultiFieldPanel([

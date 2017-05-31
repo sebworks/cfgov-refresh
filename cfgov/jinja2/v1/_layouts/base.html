@@ -64,7 +64,7 @@
         <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
         <meta property="og:type" content="{% block og_type %}website{% endblock %}">
         <meta property="og:url" content="{{ request.url }}">
-    {%- set meta_image = page.preview_image or page.social_sharing_image %}
+    {%- set meta_image = page.preview_image or page.social_sharing_image if page %}
     {% if meta_image %}
         {%- set facebook_image = image(meta_image, 'original') %}
         <meta property="og:image"

@@ -78,6 +78,7 @@ install() {
 
 # Add a checksum file
 checksum() {
+  echo 'creating checksum'
   echo -n "$DEP_CHECKSUM" > $NODE_DIR/CHECKSUM
 }
 

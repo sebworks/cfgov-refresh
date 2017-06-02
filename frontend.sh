@@ -9,6 +9,8 @@
 # Set script to exit on any errors.
 set -e
 
+echo "$CASHER_DIR"
+
 # Initialize project dependency directories.
 init() {
   # Set cli_flag variable.
@@ -78,7 +80,6 @@ install() {
 
 # Add a checksum file
 checksum() {
-  echo 'creating checksum'
   echo -n "$DEP_CHECKSUM" > $NODE_DIR/CHECKSUM
 }
 

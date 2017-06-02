@@ -50,7 +50,6 @@ def get_reusable_text_snippet(snippet_title):
     except ReusableText.DoesNotExist:
         pass
 
-
 def get_ask_nav_items(request, current_page):
     from ask_cfpb.models import Category
     return [
@@ -58,7 +57,8 @@ def get_ask_nav_items(request, current_page):
             'title': cat.name,
             'url': '/ask-cfpb/category-' + cat.slug,
             'active': False if not hasattr(current_page, 'ask_category')
-            else cat.name == current_page.ask_category.name
+            else cat.name == current_page.ask_category.name,
+            'expanded': True
         }
         for cat in Category.objects.all()
     ], True
@@ -167,7 +167,6 @@ class AnswerCategoryPage(CFGOVPage):
         paginator = Paginator(answers, 20)
         context.update({
             'answers': answers,
-            'audiences': audiences,
             'facet_map': facet_map,
             'choices': subcats,
             'current_page': int(page),
@@ -182,6 +181,7 @@ class AnswerCategoryPage(CFGOVPage):
                 ABOUT_US_SNIPPET_TITLE)
             context['disclaimer'] = get_reusable_text_snippet(
                 DISCLAIMER_SNIPPET_TITLE)
+            context['audiences'] = facet_dict['audiences']
         return context
 
 

@@ -39,6 +39,57 @@
         </div>
     </section>
 
+    <section class="ask-categories">
+
+        {% if choices|length > 0 or audiences|length > 0 %}
+        <div class="block block__bg 
+                     block__flush-sides 
+                     block__flush-bottom 
+                     block__bg-extend-right">
+            <h3>What is your question about?</h3>
+            <div class="subcategory-nav u-mb30">
+                {% for subcategory in choices %}
+                    {% if loop.index == 1 %}
+                    <ul class="content-l_col content-l_col-1-2 facets_list list list__unstyled list__spaced">
+                    {% endif %}
+                    {% set count = choices|length %}
+                    {% if loop.index == ( count // 2 ) + ( 2 if count % 2 else 1) %}
+                    </ul>
+                    <ul class="content-l_col content-l_col-1-2 facets_list list__unstyled list__spaced">
+                    {% endif %}
+                        <li class="list_item">
+                            
+                            <a>   
+                                {{ subcategory.name }}
+                            </a>
+                        </li>
+                    {% if loop.index == choices | length %}
+                    </ul>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% if audiences %}
+            <div class="topics topics__askcfpb 
+                        topics__category-filter">
+                <ul class="tags_list list__unstyled">
+                    {% for key, audience in audiences.iteritems() %}
+                    {% if audience.all|length %}
+                    <li class="tags_tag" >
+                        <a href="" class="tags_link">
+                            <span class="tags_bullet" aria-hidden="true">&bull;</span>
+                            {{ audience.name }}
+                            <span class="count">({{audience.all|length}})</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+
     <section class="search-results block
                     block__flush-top">
         <div class="message">

@@ -62,7 +62,20 @@
                 <aside class="secondary span4">            
 
                     <div id="facets" class="supplement js-showtoggle ac-filters"><!-- @todo change #facets to something else -->
+                    {% if facets %}
+                    <h3 class="js-showtoggle-trigger" role="button">Filtrar por:</h3>
+                    <div class="js-showtoggle-content js-showtoggle-content-open">
+                        <ul class="nav-list">
+                            {% for tag in facets %} 
+                                {% if tag.0 == selected_tag %}
+                                <li><a href="{{ request.url }}"><strong>[x] {{ tag.0 }} ({{ tag.1 }})</strong></a></li>
+                                {% elif tag.1 > 1 %}   
+                                <li><a href="{{ request.url }}?tag={{ tag.0 }}">{{ tag.0 }} ({{ tag.1 }})</a></li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
                     </div><!-- .js-showtoggle -->
+                    {% endif %}
 
                 </aside><!-- .secondary -->          
 

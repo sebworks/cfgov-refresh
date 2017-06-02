@@ -22,8 +22,8 @@
 
    ========================================================================== #}
 
-{% macro render(total_pages, current_page, fragment_id='', index=0) %}
-{% if total_pages > 1 and current_page <= total_pages %}
+{% macro render(total_pages, current_page, fragment_id='', index=0, always=False) %}
+{% if total_pages > 1 and current_page <= total_pages or always==True%}
 {% from 'macros/util/url_parameters.html' import url_parameters %}
 
 {% set fragment_id = '#' + fragment_id if fragment_id else '' %}
@@ -93,7 +93,7 @@
                    inputmode="numeric"
                    value="{{ current_page }}">
             <span class="m-pagination_label">
-                of {{ total_pages }}
+                of <span class="m-pagination_page-count">{{ total_pages }}</span>
             </span>
             <button class="btn
                            btn__link

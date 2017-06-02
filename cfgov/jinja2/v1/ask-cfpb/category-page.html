@@ -27,23 +27,109 @@
         </div>
     </section>
 
-    <section class="search-results block
-                    block__flush-top">
-        <div class="message">
+
+    <section class="ask-categories">
+
+        {% if choices|length > 0 or audiences|length > 0 %}
+        <div class="block block__bg 
+                     block__flush-sides 
+                     block__flush-bottom 
+                     block__bg-extend-right">
+            <h3>What is your question about?</h3>
+            <div class="form-group">
+                <form class="facets">
+                    {% for subcategory in choices %}
+                        {% if loop.index == 1 %}
+                        <ul class="form-l_col form-l_col-1-2 facets_list">
+                        {% endif %}
+                        {% if loop.index ==  ( choices | length // 2 ) +  1 %}
+                        </ul>
+                        <ul class="form-l_col form-l_col-1-2 facets_list">
+                        {% endif %}
+                            <li>
+                                <input class="cf-input u-visually-hidden filter-checkbox"
+                                       type="checkbox"
+                                       name="{{subcategory.name}}"
+                                       value="{{subcategory.id}}"
+                                       id="subcategories-{{subcategory.slug}}"
+                                       data-id="{{subcategory.slug}}">
+                                <label class="form-group_item" 
+                                       for="subcategories-{{subcategory.slug}}">   
+                                    
+                                    {{ subcategory.name }}
+                                </label>
+                            </li>
+                        {% if loop.index == choices | length %}
+                        </ul>
+                        {% endif %}
+                    {% endfor %}
+                </form>
+            </div>
+            {% if audiences %}
+            <div class="topics topics__askcfpb 
+                        topics__category-filter">
+                <ul class="tags_list list__unstyled">
+                    {% for key, audience in audiences.iteritems() %}
+
+                    {% if audience.all|length %}
+                    <li class="tags_tag" >
+                        <a href="" 
+                        class="tags_link" data-id="{{ audience.name }}">
+                            <span class="tags_bullet" aria-hidden="true">&bull;</span>
+                            {{ audience.name }}
+                            <span class="count">({{ audience.all|length }})</span>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
-        
-        <div class="question_list">
-            {% for question in questions %}
-            <article class="question_summary question_summary__basic">
-                {{ partially_styled_link.render( {'plain_text': question.question, 'underlined_text': 'Read answer', 'url': slugurl( question.slug )} ) }}  
-            </article>
-            {% endfor %}
+
+        <div class="block block__bg 
+                block__flush-sides 
+                block__flush-bottom  
+                block__bg-extend-right 
+                block__bg-branded 
+                block__flush-top
+                selections
+                hidden">
+            <div class="h3">
+                <b>Selected:</b>
+                <span class="selections_text"></span>
+            </div>
+            <p>
+                <a class="reset short-desc" href="/ask-cfpb/search/">Clear selections</a>
+            </p>
         </div>
-  
-        <div class="block block__sub">
-            {{ pagination.render( paginator.num_pages, current_page, '', 0 ) }}
-        </div>  
+
+        {% endif %}
+
+        <div class="search-results block
+                        block__flush-top">
+            <h4 class="notification u-mt30"></h4>
+            
+            <div class="question_list">
+                {% for question in questions %}
+                <article class="question_summary 
+                                {% if question.id not in paginated_questions %}
+                                hidden
+                                {% endif %}"
+                                data-id="{{question.id}}">
+                    {{ partially_styled_link.render( {'plain_text': question.question, 'underlined_text': 'Read answer', 'url': slugurl( question.slug )} ) }}  
+                </article>
+                {% endfor %}
+            </div>
+      
+            <div class="block block__sub">
+                {{ pagination.render( paginator.num_pages, current_page, '', 0 ) }}
+            </div>  
+        </div>
     </section>
+
+
     {{ ask_search_bar.render( 'right' ) }}
 
 {% endblock %}
@@ -52,6 +138,10 @@
 {{ super() }}
 <script>
     var facetMap = {{ facet_map|safe }};
+    var page = {{ current_page|safe }};
+    var pageCount = {{ paginator.num_pages|safe}}
+    var el = document.querySelector('.ask-categories');
+    var filter = new AskFilter( el, facetMap, page, pageCount ).init()
 </script>    
 {% endblock %}
 

@@ -28,6 +28,7 @@ from bs4 import BeautifulSoup, NavigableString
 from processors.processors_common import fix_link
 from core.utils import signed_redirect, unsigned_redirect
 from v1.routing import get_protected_url
+import urllib
 
 
 default_app_config = 'v1.apps.V1AppConfig'
@@ -37,6 +38,38 @@ def strip_accents(value):
     nfkd_form = unicodedata.normalize('NFKD', unicode(value))
     only_ascii = nfkd_form.encode('ASCII', 'ignore')
     return only_ascii
+
+def remove_facet_url(request, addition):
+    x = []
+    base_url = request.path
+    for key in request.GET:
+        value = request.GET.getlist(key)
+        for v in request.GET.getlist(key):
+            x.append((key, v))
+    print addition
+    print x
+    if addition in x:
+        x.remove(addition)
+    querystring = urllib.urlencode(x, doseq=True)
+    if querystring:
+        return base_url + '?' + querystring
+    else:
+        return base_url
+
+def facet_url(request, addition):
+    x = []
+    base_url = request.path
+    for key in request.GET:
+        value = request.GET.getlist(key)
+        for v in request.GET.getlist(key):
+            x.append((key, v))
+    if addition not in x:
+        x.append(addition)
+    querystring = urllib.urlencode(x, doseq=True)
+    if querystring:
+        return base_url + '?' + querystring
+    else:
+        return base_url
 
 
 def environment(**options):
@@ -72,6 +105,8 @@ def environment(**options):
         'get_snippets': get_snippets,
         'localtime': template_localtime,
         'strip_accents': strip_accents,
+        'facet_url': facet_url,
+        'remove_facet_url': remove_facet_url
     })
 
     env.filters.update({

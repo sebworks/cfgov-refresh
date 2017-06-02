@@ -82,6 +82,10 @@
 }
 
 .ask-cfpb-page {
+    .hidden {
+        display: none !important;
+    }
+
     .search-results {
         max-width: @bp-xs-max;    
     }
@@ -233,6 +237,42 @@
           margin-bottom: 0;
           padding:  unit( @grid_gutter-width / @base-font-size-px, em ) 0;
         });
+    }
+
+    .facets_list {
+        padding-left: 0;
+        list-style-type: none;
+
+        &:first-child {
+            border-right-width: unit( 18px / @base-font-size-px, em );
+        }
+
+        &:last-child {
+            border-left-width: unit( 18px / @base-font-size-px, em );
+        }
+    }
+
+    .facets_list + .facets_list {
+
+        .respond-to-max( @bp-xs-max, {
+            margin-top: unit( 15px / @base-font-size-px, em );
+        } );
+    }
+
+    .facets_list li {
+        position: relative;
+        margin-bottom: unit( 15px / @base-font-size-px, em );
+    }
+
+
+    .facets .form-group_item a {
+        position: relative;
+        height: 100%;
+        width: 100%;
+        padding-left: unit( 30px / @base-font-size-px, em );
+        margin-left: unit( -30px / @base-font-size-px, em );
+        border: none;
+        .u-link__colors( @pacific, @pacific, @pacific-60, @pacific, @navy );
     }
 }
 

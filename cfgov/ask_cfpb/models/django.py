@@ -112,18 +112,16 @@ class Category(models.Model):
             'subcategories': {},
             'audiences': {}
         }
-        container['answers'] = OrderedDict([
-            (str(answer.pk),
-             {'question': answer.question,
-              'url': '/ask-cfpb/slug-en-{}'.format(answer.pk)}
-             ) for answer in answers if answer.english_page])
+        container['answers'] = [
+            str(answer.pk) for answer in answers if answer.english_page]
         subcat_data = {}
         for subcat in subcats:
-            key = str(subcat.id)
-            subcat_data[key] = [
-                str(answer.pk) for answer
+            key = str(subcat.slug)
+            subcat_data[key] = {
+                'all': [str(answer.pk) for answer
                 in subcat.answer_set.all()
-                if answer.english_page]
+                if answer.english_page],
+                'name': subcat.name}
         container['subcategories'].update(subcat_data)
         audience_map = {audience: {'all': [], 'name': audience.name}
                         for audience in audiences}
@@ -132,16 +130,16 @@ class Category(models.Model):
                 if audience in answer.audiences.all():
                     audience_map[audience]['all'].append(str(answer.pk))
         for subcat in subcats:
-            ID = str(subcat.id)
+            ID = str(subcat.slug)
             for audience in audience_map:
                 _map = audience_map[audience]
                 if _map['all']:
                     _map[ID] = []
-                    for answer_id in subcat_data[ID]:
+                    for answer_id in subcat_data[ID]['all']:
                         if answer_id in _map['all']:
                             _map[ID].append(answer_id)
         container['audiences'].update(
-            {str(audience.id): audience_map[audience]
+            {str(audience.name): audience_map[audience]
              for audience in audience_map.keys()})
         return json.dumps(container)
 

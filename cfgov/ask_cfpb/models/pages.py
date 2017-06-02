@@ -105,44 +105,56 @@ class AnswerCategoryPage(
     def get_context(self, request, *args, **kwargs):
         context = super(
             AnswerCategoryPage, self).get_context(request, *args, **kwargs)
+
         sqs = SearchQuerySet().models(self.Category)
         if self.language == 'es':
             sqs = sqs.filter(content=self.ask_category.name_es)
         else:
             sqs = sqs.filter(content=self.ask_category.name)
         if sqs:
-            facet_map = sqs[0].facet_map
+            facet_map = self.ask_category.facet_map
         else:
             facet_map = self.ask_category.facet_map
         facet_dict = json.loads(facet_map)
         subcat_ids = facet_dict['subcategories'].keys()
-        answer_ids = facet_dict['answers'].keys()
-        audience_ids = facet_dict['audiences'].keys()
+        answer_ids = facet_dict['answers']        
         subcats = self.SubCategory.objects.filter(
-            pk__in=subcat_ids).values(
+            slug__in=subcat_ids).values(
                 'id', 'slug', 'slug_es', 'name', 'name_es')
+        
         answers = self.Answer.objects.filter(
             pk__in=answer_ids).order_by('-pk').values(
                 'id', 'question', 'question_es',
                 'slug', 'slug_es', 'answer_es')
+
         for a in answers:
             a['answer_es'] = Truncator(a['answer_es']).words(
                 40, truncate=' ...')
-        audiences = self.Audience.objects.filter(
-            pk__in=audience_ids).values('id', 'name')
         page = request.GET.get('page', 1)
         paginator = Paginator(answers, 20)
+        page_results = paginator.page(page)
+
         context.update({
-            'answers': answers,
-            'audiences': audiences,
-            'facet_map': facet_map,
-            'choices': subcats,
             'current_page': int(page),
             'paginator': paginator,
-            'questions': paginator.page(page),
             'results_count': answers.count()
         })
+
+        if self.language == 'en':
+            context.update({
+                'choices': subcats,
+                'facet_map': facet_map,
+                'audiences': facet_dict['audiences'],
+                'paginated_questions': [answer['id'] for answer 
+                in paginator.page(page).object_list],
+                'questions': answers
+            })
+        else:
+            context.update({
+                'questions': page_results
+            })
         return context
+
 
 
 class AnswerResultsPage(

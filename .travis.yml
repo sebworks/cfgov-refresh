@@ -12,6 +12,8 @@ addons:
 
 cache:
   - pip
+  - directories
+    - node_modules
 
 install:
   - ./install_travis.sh

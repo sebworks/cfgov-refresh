@@ -4,11 +4,11 @@
 set -e
 
 echo "running $RUNTEST tests"
-gulp=/home/travis/.nvm/versions/node/v8.1.3/lib/node_modules/gulp-cli/bin/gulp.js
+$gulp=/home/travis/.nvm/versions/node/v8.1.3/lib/node_modules/gulp-cli/bin/gulp.js
 
 if [ "$RUNTEST" == "frontend" ]; then
-    gulp "test:unit"
-    gulp "test:coveralls"
+    $gulp "test:unit"
+    $gulp "test:coveralls"
 elif [ "$RUNTEST" == "backend" ]; then
     tox
     flake8

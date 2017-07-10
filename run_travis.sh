@@ -18,5 +18,5 @@ elif [ "$RUNTEST" == "acceptance" ]; then
     sh -e /etc/init.d/xvfb start &
     sleep 3
     export HEADLESS_CHROME_BINARY=/usr/bin/google-chrome-beta
-    gulp test:acceptance
+   $gulp test:acceptance
 fi

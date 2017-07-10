@@ -11,7 +11,7 @@ frontend() {
         nvm install 8
     fi
 
-    nvm install -g gulp npm@5.0.0
+    npm install -g gulp
     chmod +x ./frontend.sh
     ./frontend.sh test
 }

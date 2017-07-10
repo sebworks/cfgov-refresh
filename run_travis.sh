@@ -4,7 +4,7 @@
 set -e
 
 echo "running $RUNTEST tests"
-gulp = /home/travis/.nvm/versions/node/v8.1.3/bin
+/home/travis/.nvm/versions/node/v8.1.3/bin/nvm use 8
 
 if [ "$RUNTEST" == "frontend" ]; then
     gulp "test:unit"

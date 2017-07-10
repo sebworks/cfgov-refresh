@@ -12,7 +12,7 @@ frontend() {
     fi
 
     npm install -g gulp-cli
-    export TRAVIS_NODE_VERSION=8
+    export gulp=/home/travis/.nvm/versions/node/v8.1.3/bin/gulp.js
     chmod +x ./frontend.sh
     ./frontend.sh test
 }

@@ -5,6 +5,8 @@ set -e
 
 echo "running $RUNTEST tests"
 
+/home/travis/.nvm/versions/node/v8.1.3/bin/gulp.js -v
+
 if [ "$RUNTEST" == "frontend" ]; then
     gulp "test:unit"
     gulp "test:coveralls"

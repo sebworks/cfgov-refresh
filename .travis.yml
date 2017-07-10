@@ -16,6 +16,9 @@ cache:
 install:
   - ./install_travis.sh
 
+before_install:
+  - "nvm use 8"
+
 env:
   global:
     - TOXENV=py27

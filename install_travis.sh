@@ -12,6 +12,7 @@ frontend() {
     fi
 
     npm install -g gulp-cli
+    export PATH=/home/travis/.nvm/versions/node/v8.0.0/lib/node_modules/gulp-cli/bin/gulp.js:$PATH
     chmod +x ./frontend.sh
     ./frontend.sh test
 }

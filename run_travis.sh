@@ -5,10 +5,6 @@ set -e
 
 echo "running $RUNTEST tests"
 
-echo $PATH
-cat ~/.bash_profile
-
-echo $PATH
 if [ "$RUNTEST" == "frontend" ]; then
     gulp "test:unit"
     gulp "test:coveralls"

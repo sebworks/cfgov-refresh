@@ -9,12 +9,10 @@ frontend() {
         curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh | bash
         source $HOME/.nvm/nvm.sh
         nvm install 8
-        source ~/.bash_profile
-        nvm use 8
-    fi
 
-    npm -v
+    fi
     npm install -g gulp-cli
+    source ~/.bash_profile
     chmod +x ./frontend.sh
 
     ./frontend.sh test

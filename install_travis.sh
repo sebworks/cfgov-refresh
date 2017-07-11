@@ -9,6 +9,7 @@ frontend() {
         curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh | bash
         source $HOME/.nvm/nvm.sh
         nvm install 8
+        export PATH=/home/travis/.nvm/versions/node/:$PATH
         source ~/.bash_profile
     fi
 

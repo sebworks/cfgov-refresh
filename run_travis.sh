@@ -6,7 +6,8 @@ set -e
 echo "running $RUNTEST tests"
 
 if [ "$RUNTEST" == "frontend" ]; then
-    node -v
+    source $HOME/.nvm/nvm.sh
+    nvm use 8
     gulp "test:unit"
     gulp "test:coveralls"
 elif [ "$RUNTEST" == "backend" ]; then
@@ -14,6 +15,8 @@ elif [ "$RUNTEST" == "backend" ]; then
     flake8
     coveralls
 elif [ "$RUNTEST" == "acceptance" ]; then
+    source $HOME/.nvm/nvm.sh
+    nvm use 8
     export DISPLAY=:99.0
     sh -e /etc/init.d/xvfb start &
     sleep 3

@@ -6,6 +6,8 @@ set -e
 echo "running $RUNTEST tests"
 
 echo $PATH
+cat ~/.bash_profile
+
 if [ "$RUNTEST" == "frontend" ]; then
     source $HOME/.nvm/nvm.sh
     nvm use 8.0.0

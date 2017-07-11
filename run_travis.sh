@@ -6,8 +6,6 @@ set -e
 echo "running $RUNTEST tests"
 
 if [ "$RUNTEST" == "frontend" ]; then
-    source $HOME/.nvm/nvm.sh
-    nvm use 8
     node -v
     gulp "test:unit"
     gulp "test:coveralls"

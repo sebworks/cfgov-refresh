@@ -4,7 +4,6 @@
 frontend() {
     export CXX=clang++
 
-     cat ~/.bash_profile
     # Temporarily commented out to deal with default Node version issues
     if [[ "$(node -v)" != 'v8.'* ]]; then
         curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh | bash
@@ -12,9 +11,12 @@ frontend() {
         nvm install 8
     fi
 
-    cat ~/.bash_profile
+    export PATH=/home/travis/.nvm/versions/node/v8.1.3/:$PATH
+    source ~/.bash_profile
+
     npm install -g gulp-cli
     chmod +x ./frontend.sh
+
     ./frontend.sh test
 }
 

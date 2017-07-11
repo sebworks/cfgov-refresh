@@ -5,6 +5,7 @@ set -e
 
 echo "running $RUNTEST tests"
 
+echo $PATH
 cat ~/.bash_profile
 
 echo $PATH

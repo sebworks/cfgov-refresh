@@ -4,6 +4,7 @@
 set -e
 
 echo "running $RUNTEST tests"
+node -v
 
 if [ "$RUNTEST" == "frontend" ]; then
     gulp "test:unit"

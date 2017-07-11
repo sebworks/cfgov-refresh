@@ -10,8 +10,10 @@ frontend() {
         source $HOME/.nvm/nvm.sh
         nvm install 8
         source ~/.bash_profile
+        nvm use 8
     fi
 
+    npm -v
     npm install -g gulp-cli
     chmod +x ./frontend.sh
 

@@ -6,9 +6,8 @@ frontend() {
 
     # Temporarily commented out to deal with default Node version issues
     if [[ "$(node -v)" != 'v8.'* ]]; then
-        touch ~/.bash_profile
         curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh | bash
-        source ~/.nvm/nvm.sh
+        source $HOME/.nvm/nvm.sh
         nvm install 8
     fi
 

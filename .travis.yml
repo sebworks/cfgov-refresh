@@ -5,31 +5,65 @@ dist: trusty
 python:
   - "2.7"
 
+services:
+  - postgresql
+
 addons:
+  postgresql: "9.6"
   apt:
+    sources:
+    - google-chrome
     packages:
-      - google-chrome-beta
+    - google-chrome-stable
 
 cache:
-  - pip
+  pip: true
+  directories:
+    - node_modules
+    # App's may have their own node_modules directory and should be listed here
+    # in the format cfgov/unprocessed/apps/[namespace]/node_modules
+    # If they are not listed here the caching mechanism will falsely see the
+    # main node_modules directory as being cached and never run npm install,
+    # which also installs app's node_modules.
+    - cfgov/unprocessed/apps/owning-a-home/node_modules
+    - cfgov/unprocessed/apps/regulations3k/node_modules
+    - cfgov/unprocessed/apps/analytics-gtm/node_modules
 
 install:
-  - ./install_travis.sh
+  - ./travis_install.sh
+
+branches:
+  only:
+    - master
+
+before_script:
+  - psql -c 'create database travis_ci_test;' -U postgres
+
+script:
+  - ./travis_run.sh
 
 env:
   global:
-    - TOXENV=py27
     - DJANGO_SETTINGS_MODULE=cfgov.settings.test
     - DJANGO_STAGING_HOSTNAME=content.localhost
     - COVERALLS_PARALLEL=true
+    - HEADLESS_CHROME_BINARY=/usr/bin/google-chrome-stable
 
-  matrix:
-    - RUNTEST=frontend
-    - RUNTEST=backend
-    - RUNTEST=acceptance
-
-script:
-  - ./run_travis.sh
-
-notifications:
-  webhooks: https://coveralls.io/webhook?repo_token=COVERALLS_REPO_TOKEN
+jobs:
+  fast_finish: true
+  include:
+    - stage: run tests
+    - env: RUNTEST=acceptance
+    - stage: Update documentation
+      script:
+        - pip install virtualenv virtualenvwrapper
+        - source activate-virtualenv.sh
+        - pip install -r requirements/manual.txt
+        - mkdocs build
+      deploy:
+        provider: pages
+        local_dir: site
+        skip-cleanup: true
+        github_token: $GITHUB_TOKEN
+        on:
+          branch: master

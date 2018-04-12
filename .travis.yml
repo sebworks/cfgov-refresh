@@ -10,9 +10,10 @@ services:
 
 addons:
   postgresql: "9.6"
-  apt:
-    packages:
-      - google-chrome-beta
+  chrome: stable
+
+before_install:
+  - 'google-chrome-stable --headless --remote-debugging-port=9222 --disable-gpu http://localhost &'
 
 cache:
   pip: true

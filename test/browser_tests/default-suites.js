@@ -61,6 +61,7 @@ const defaultSuites = {
     {
       browserName:   'chrome',
       chromeOptions: {
+       envvars.IS_TRAVIS ? '--no-sandbox' : null,
         args: [ '--headless', '--disable-gpu' ]
       },
       maxDuration: 10800

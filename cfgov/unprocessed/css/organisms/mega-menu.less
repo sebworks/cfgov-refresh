@@ -1,4 +1,7 @@
 
+// Import Capital Framework Atomic Component less file to get transition CSS.
+@import (less) 'cf-atomic-component.less';
+
 // TODO: Move the theme variables to /enhancements/ for CF.
 /* topdoc
   name: Theme variables
@@ -78,10 +81,10 @@ body {
                                                             </a>
                                                         </span>
                                                         <div class="o-mega-menu_content-lists">
-                                                            <ul class="list
-                                                                       list__unstyled
+                                                            <ul class="m-list
+                                                                       m-list__unstyled
                                                                        o-mega-menu_content-list">
-                                                                <li class="list_item
+                                                                <li class="m-list_item
                                                                            o-mega-menu_content-item">
                                                                     <a class="o-mega-menu_content-link"
                                                                        href="/the-bureau/">
@@ -90,10 +93,10 @@ body {
                                                                 </li>
                                                                 …
                                                             </ul>
-                                                            <ul class="list
-                                                                       list__unstyled
+                                                            <ul class="m-list
+                                                                       m-list__unstyled
                                                                        o-mega-menu_content-list">
-                                                                    <li class="list_item
+                                                                    <li class="m-list_item
                                                                                o-mega-menu_content-item">
                                                                         <a class="o-mega-menu_content-link__current
                                                                                   o-mega-menu_content-link"
@@ -162,6 +165,12 @@ body {
 */
 
 .o-mega-menu {
+
+    ul ul {
+        // Override margin added by CF between lists.
+        margin-top: 0;
+    }
+
     &_content-item {
         // Override margin added by CF to list items.
         margin-bottom: 0;
@@ -193,6 +202,12 @@ body {
             display: block;
         }
     }
+
+    &_footer {
+        border-top: 1px solid @gray-40;
+        padding: @grid_gutter-width / 2 0;
+    }
+
 
     // Mobile sizes.
     .respond-to-max( @bp-xs-max, {
@@ -252,6 +267,7 @@ body {
                     content: @cf-icon-delete;
                 }
             }
+
         }
 
         // Menu flyout.
@@ -280,17 +296,14 @@ body {
             }
 
             &-alt-trigger {
-                .webfont-medium();
-
-                padding: unit( @grid_gutter-width / 2 / @base-font-size-px, em );
-                width: 100%;
-
                 display: block;
-                position: relative;
-
-                background-color: @gray-10;
+                width: 100%;
+                padding: unit( @grid_gutter-width / 2 / @base-font-size-px, em );
                 border: none;
                 border-bottom: 1px solid @gray-40;
+                position: relative;
+                background-color: @gray-10;
+                font-weight: 500;
                 text-align: left;
                 text-transform: uppercase;
 
@@ -437,6 +450,21 @@ body {
                 padding-right: unit( @grid_gutter-width / 2 / @base-font-size-px, em );
             }
         }
+
+        // Group heading - Tablet/Mobile
+        &_group-heading {
+            margin-top: @grid_gutter-width;
+
+            &__hidden {
+                .u-visually-hidden;
+            }
+
+            // add border between title and following list
+            &:not(&__hidden) + ul {
+                border-top: 1px solid @gray-40;
+            }
+        }
+
     } );
 
     // Desktop sizes.
@@ -444,6 +472,11 @@ body {
 
         &_trigger {
             display: none;
+        }
+
+        &_footer {
+            margin-top: @grid_gutter-width;
+            font-size: unit( 18px / @base-font-size-px, em );
         }
 
         // 1st-level menu - Desktop.
@@ -556,8 +589,7 @@ body {
 
             &-overview {
                 padding-bottom: @grid_gutter-width / 2;
-                margin-bottom: unit( @grid_gutter-width / 2 / 18px, em );
-
+                margin-bottom: @grid_gutter-width * 2 / 3 ;
                 font-size: 1em;
 
                 // ------------------------------------------------------------
@@ -597,6 +629,8 @@ body {
                     border-left-color: @green;
                 }
             }
+
+
         }
 
         // 3rd-level menu - Desktop.
@@ -613,7 +647,6 @@ body {
 
     // Large desktop size.
     .respond-to-min( @bp-lg-min, {
-
         &_content-1 {
             &-item {
                 margin-right: @grid_gutter-width * 1.5;
@@ -626,6 +659,17 @@ body {
                 // TODO: Check if .grid_nested-col-group()
                 //       can be used here when implementing Featured Menu Content.
                 border-left: 0;
+            }
+        }
+
+        // Group heading - Large desktop.
+
+        &_group-heading {
+            // match link item indentation
+            padding-left: unit( @grid_gutter-width * 2 / 3 / @size-v, em );
+
+            &__hidden {
+                visibility: hidden;
             }
         }
     } );
@@ -665,98 +709,6 @@ body {
     }
 } );
 
-// for IA_USER_TESTING_MENU feature flag
-.o-mega-menu__ia-testing {
-     .o-mega-menu_content-2 {
-        .o-mega-menu_content-grid.full-width {
-            .respond-to-min( @bp-lg-min, {
-                .grid_column( 12 );
-                .o-mega-menu_content-list {
-                    .grid_column( 3 );
-                }
-            });
-        }
-        .o-mega-menu-list {
-            .respond-to-max( @bp-sm-max, {
-
-                h3 {
-                    margin-top: 15px;
-                }
-            });
-        }
-    }
-    .respond-to-min( @bp-med-min, {
-        .consumer-tools-overview {
-            display: none;
-        }
-    });
-
-    .respond-to-min( @bp-lg-min, {
-        .o-mega-menu_content-2-overview {
-            margin-bottom: 20px;
-        }
-    });
-
-    .hide-title span {
-        .respond-to-max( @bp-sm-max, {
-            .u-visually-hidden;
-        });
-        .respond-to-min( @bp-lg-min, {
-            visibility: hidden;
-        });
-    }
-
-    .group-title,
-    .hide-title {
-        font-size: unit( 18px / @base-font-size-px, em );
-
-        .respond-to-min( @bp-med-min, {
-            span {
-                padding-left: unit( ( @grid_gutter-width *  2 / 3 ) / @base-font-size-px, em);
-            }
-        });
-    }
-
-    .group-title {
-        margin-top: unit(@grid_gutter-width / 2 / @base-font-size-px, em);
-        margin-bottom: 0;
-
-        &:after {
-            content: "";
-            display: block;
-            height: 1px;
-            background-color: @grid_column__top-divider;
-            position: static;
-            width: 100%;
-            margin-top: unit(@grid_gutter-width / 3 / @base-font-size-px, em);
-            margin-bottom: 0;
-            margin-left: auto !important;
-        }
-
-        .respond-to-min( @bp-med-min, {
-            margin-top: 0;
-            margin-bottom: auto;
-            &:after {
-                margin-bottom: unit(@grid_gutter-width / 3 / @base-font-size-px, em);
-            }
-        });
-    }
-
-    .respond-to-min( @bp-med-min, {
-        .hide-title:after {
-            content: "";
-            display: block;
-            height: 1px;
-            margin-bottom: unit(@grid_gutter-width / 3 / @base-font-size-px, em);
-            background-color: @grid_column__top-divider;
-            position: static;
-            width: 100%;
-            margin-top: unit(@grid_gutter-width / 3 / @base-font-size-px, em);
-            margin-left: -30px;
-        }
-    });
-}
-// end feature flag section
 
 
 /* topdoc

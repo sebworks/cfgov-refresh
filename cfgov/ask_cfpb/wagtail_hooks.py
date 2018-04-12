@@ -1,25 +1,25 @@
 from __future__ import unicode_literals
 
-from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import login_required
-from wagtail.contrib.modeladmin.options import (
-    ModelAdmin, ModelAdminGroup, modeladmin_register)
-from wagtail.contrib.modeladmin.views import EditView
-
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
 from django.utils.html import format_html, format_html_join
+
+from wagtail.contrib.modeladmin.options import (
+    ModelAdmin, ModelAdminGroup, modeladmin_register
+)
+from wagtail.contrib.modeladmin.views import EditView
 from wagtail.wagtailcore import hooks
 from wagtail.wagtailcore.whitelist import attribute_rule
 
-from ask_cfpb.models import (
-    Answer,
-    Audience,
-    Category,
-    NextStep,
-    SubCategory)
+from ask_cfpb.models import Answer, Audience, Category, NextStep, SubCategory
 
 
 class AnswerModelAdminSaveUserEditView(EditView):
+    """
+    An edit_handler that saves the current user as the 'last user'
+    on an Answer object so that it can be passed to a created or updated page.
+    """
 
     def save_instance_user(self):
         self.instance.last_user = self.request.user
@@ -42,8 +42,8 @@ class AnswerModelAdmin(ModelAdmin):
         'question_es',
         'last_edited_es')
     search_fields = (
-        'id', 'question', 'question_es', 'answer', 'answer_es')
-    list_filter = ('category', 'featured')
+        'id', 'question', 'question_es', 'answer', 'answer_es', 'search_tags')
+    list_filter = ('category', 'featured', 'audiences')
     edit_view_class = AnswerModelAdminSaveUserEditView
 
 
@@ -55,7 +55,7 @@ class AudienceModelAdmin(ModelAdmin):
 
 class NextStepModelAdmin(ModelAdmin):
     model = NextStep
-    menu_label = 'Next steps'
+    menu_label = 'Related resources'
     menu_icon = 'list-ul'
     list_display = (
         'title', 'text')
@@ -95,8 +95,8 @@ class MyModelAdminGroup(ModelAdminGroup):
 
 def editor_js():
     js_files = [
-        'js/admin/html_editor.js',
-        'js/admin/ask_cfpb_tips.js'
+        'js/html_editor.js',
+        'js/ask_cfpb_tips.js'
     ]
     js_includes = format_html_join(
         '\n', '<script src="{0}{1}"></script>',
@@ -121,12 +121,15 @@ def editor_css():
 
 
 def whitelister_element_rules():
-    return {
-        'aside': attribute_rule({'class': True}),
-    }
+    allow_html_class = attribute_rule({'class': True})
 
-if settings.DEPLOY_ENVIRONMENT == 'build':
-    hooks.register('insert_editor_js', editor_js)
-    hooks.register('insert_editor_css', editor_css)
-    hooks.register(
-        'construct_whitelister_element_rules', whitelister_element_rules)
+    allowed_tags = ['aside', 'table', 'tr', 'th', 'td', 'tbody', 'thead',
+                    'tfoot', 'col', 'colgroup']
+
+    return {tag: allow_html_class for tag in allowed_tags}
+
+
+hooks.register('insert_editor_js', editor_js)
+hooks.register('insert_editor_css', editor_css)
+hooks.register(
+    'construct_whitelister_element_rules', whitelister_element_rules)

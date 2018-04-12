@@ -1,12 +1,13 @@
 from django.db import models
-from django.db.models.signals import pre_delete
-from django.dispatch import receiver
+from django.utils.functional import cached_property
 from django.utils.six import string_types
-from wagtail.wagtailimages.image_operations import (DoNothingOperation,
-                                                    MinMaxOperation,
-                                                    WidthHeightOperation)
-from wagtail.wagtailimages.models import (AbstractImage, AbstractRendition,
-                                          Filter, Image)
+
+from wagtail.wagtailimages.image_operations import (
+    DoNothingOperation, MinMaxOperation, WidthHeightOperation
+)
+from wagtail.wagtailimages.models import (
+    AbstractImage, AbstractRendition, Filter, Image
+)
 
 
 class CFGOVImage(AbstractImage):
@@ -89,6 +90,14 @@ class CFGOVImage(AbstractImage):
         # Override Wagtail default of setting alt text to the image title.
         return self.alt
 
+    # If the image is both large and its height-to-width ratio is approximately
+    # 1/2 we instruct the template to render large Twitter cards
+    # See https://dev.twitter.com/cards/types/summary-large-image
+    @property
+    def should_display_summary_large_image(self):
+        image_ratio = float(self.height) / self.width
+        return self.width >= 1000 and 0.4 <= image_ratio <= 0.6
+
 
 class CFGOVRendition(AbstractRendition):
     image = models.ForeignKey(CFGOVImage, related_name='renditions')
@@ -97,19 +106,29 @@ class CFGOVRendition(AbstractRendition):
     def alt(self):
         return self.image.alt
 
+    @cached_property
+    def orientation(self):
+        orientation = 'square'
+        if self.is_portrait:
+            orientation = 'portrait'
+        elif self.is_landscape:
+            orientation = 'landscape'
+
+        return orientation
+
+    @cached_property
+    def is_square(self):
+        return self.height == self.width
+
+    @cached_property
+    def is_portrait(self):
+        return self.height > self.width
+
+    @cached_property
+    def is_landscape(self):
+        return self.height < self.width
+
     class Meta:
         unique_together = (
             ('image', 'filter_spec', 'focal_point_key'),
         )
-
-
-# Delete the source image file when an image is deleted
-@receiver(pre_delete, sender=CFGOVImage)
-def image_delete(sender, instance, **kwargs):
-    instance.file.delete(False)
-
-
-# Delete the rendition image file when a rendition is deleted
-@receiver(pre_delete, sender=CFGOVRendition)
-def rendition_delete(sender, instance, **kwargs):
-    instance.file.delete(False)

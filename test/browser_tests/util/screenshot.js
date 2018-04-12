@@ -2,22 +2,20 @@
    Utility to capture a screenshot of the current browser window.
    ========================================================================== */
 
-'use strict';
+const fs = require( 'fs' );
 
-var fs = require( 'fs' );
-
-var _screenShotDirectory = 'test/';
+const _screenShotDirectory = 'test/';
 
 /**
  * Write a screenshot string to a file.
  * @param {string} filename - The filename of the file to create.
  * @param {string} data - A base64-encoded string to write to a file.
  */
-function _writeScreenShot( filename, data ) {
-  var stream = fs.createWriteStream( _screenShotDirectory + filename );
+async function _writeScreenShot( filename, data ) {
+  const stream = await fs.createWriteStream( _screenShotDirectory + filename );
 
-  stream.write( new Buffer( data, 'base64' ) );
-  stream.end();
+  await stream.write( new Buffer( data, 'base64' ) );
+  await stream.end();
 }
 
 /**
@@ -33,10 +31,9 @@ function _processScreenshot( screenShotName = 'screenshot', png ) {
  * Capture a screenshot of the current browser window.
  * @param {string} screenShotName - Name of the screenshot.
  */
-function capture( screenShotName ) {
-  browser.takeScreenshot().then( function( bufferData ) {
-    _processScreenshot( screenShotName, bufferData );
-  } );
+async function capture( screenShotName ) {
+  const png = await browser.takeScreenshot();
+  await _processScreenshot( screenShotName, png );
 }
 
 // Expose public methods.

@@ -24,18 +24,17 @@
 
 {% import 'molecules/social-media.html' as social_media with context %}
 {% import 'macros/category-slug.html' as category_slug %}
-{% import 'macros/time.html' as time %}
 
 {% macro render(value) %}
 
-{% set form_id, ancestor = get_filter_data(page) %}
+{% set ancestor = page.get_filter_data() %}
 {% set page_url = get_protected_url(ancestor) %}
 {% set published_date = value.date %}
 {% set has_authors = page.authors.exists() %}
 
 <div class="o-item-introduction">
     {% if page.categories.count() > 0 and value.show_category %}
-        {{ category_slug.render(page.categories.first().name, page_url, index=form_id) }}
+        {{ category_slug.render(page.categories.first().name, page_url) }}
     {% endif %}
     <h1>{{ value.heading | safe }}</h1>
 
@@ -50,7 +49,7 @@
             <span class="byline">
             {%- for author in page.get_authors() -%}
                 {{- 'By ' if loop.index == 1 else ' and ' }}
-                <a href="{{ page_url }}?filter{{ form_id }}_authors={{ author.slug }}">
+                <a href="{{ page_url }}?authors={{ author.slug }}">
                     {{ author.name }}
                 </a>
             {%- endfor -%}
@@ -58,7 +57,8 @@
             </span>
         {% endif %}
         {% if published_date %}
-            <span class="date">
+            <span class="a-date">
+                {% import 'macros/time.html' as time %}
                 {{ time.render(published_date, {'date':true}) }}
             </span>
         {% endif %}

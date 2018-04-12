@@ -3,6 +3,7 @@ from time import time
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.core.urlresolvers import resolve
 from django.http import Http404, HttpResponseRedirect
+
 from wagtail.wagtailcore.blocks.stream_block import StreamValue
 
 
@@ -49,6 +50,10 @@ def get_secondary_nav_items(request, current_page):
     if not page:
         return [], False
 
+    # Return a boolean about whether or not the current page has Browse
+    # children
+    has_children = False
+
     # Handle the Newsroom page specially.
     # TODO: Remove this ASAP once Press Resources gets its own Wagtail page
     if page.slug == 'newsroom':
@@ -75,7 +80,7 @@ def get_secondary_nav_items(request, current_page):
     else:
         pages = filter(
             lambda p: instanceOfBrowseOrFilterablePages(p.specific),
-            page.get_appropriate_siblings(request.site.hostname)
+            page.get_appropriate_siblings()
         )
 
     nav_items = []
@@ -96,35 +101,49 @@ def get_secondary_nav_items(request, current_page):
             'expanded': item_selected,
         }
 
-        visible_children = filter(
-            lambda c: (
-                instanceOfBrowseOrFilterablePages(c) and
-                (c.live)
-            ),
-            sibling.get_children().specific()
-        )
+        if page.id == sibling.id:
+            visible_children = filter(
+                lambda c: (
+                    instanceOfBrowseOrFilterablePages(c) and
+                    (c.live)
+                ),
+                sibling.get_children().specific()
+            )
+            if len(visible_children):
+                has_children = True
+                for child in visible_children:
+                    child_selected = current_page.pk == child.pk
 
-        for child in visible_children:
-            child_selected = current_page.pk == child.pk
+                    if child_selected:
+                        item['expanded'] = True
 
-            if child_selected:
-                item['expanded'] = True
-
-            item['children'].append({
-                'title': child.title,
-                'slug': child.slug,
-                'url': child.relative_url(request.site),
-                'active': child_selected,
-            })
+                    item['children'].append({
+                        'title': child.title,
+                        'slug': child.slug,
+                        'url': child.relative_url(request.site),
+                        'active': child_selected,
+                    })
 
         nav_items.append(item)
 
-    # Return a boolean about whether or not the current page has Browse
-    # children
-    has_children = any(
-        page.relative_url(request.site) == item['url'] and item['children']
-        for item in nav_items
+    # Add `/process/` segment to OAH journey page nav urls.
+    # TODO: Remove this when redirects for `/process/` urls
+    # are added after 2018 homebuying campaign.
+    journey_urls = (
+        '/owning-a-home/prepare',
+        '/owning-a-home/explore',
+        '/owning-a-home/compare',
+        '/owning-a-home/close',
+        '/owning-a-home/sources',
     )
+    if current_page.relative_url(request.site).startswith(journey_urls):
+        for item in nav_items:
+            item['url'] = item['url'].replace(
+                'owning-a-home', 'owning-a-home/process')
+            for child in item['children']:
+                child['url'] = child['url'].replace(
+                    'owning-a-home', 'owning-a-home/process')
+    # END TODO
 
     return nav_items, has_children
 
@@ -167,3 +186,18 @@ def get_streamfields(page):
         if isinstance(value, StreamValue):
             blocks_dict.update({key: value})
     return blocks_dict
+
+
+def extended_strftime(dt, format):
+    """
+    Extend strftime with additional patterns:
+    _m for custom month abbreviations,
+    _d for day values without leading zeros.
+    """
+    _MONTH_ABBREVIATIONS = [None, 'Jan.', 'Feb.', 'Mar.', 'Apr.',
+                            'May', 'Jun.', 'Jul.', 'Aug.',
+                            'Sept.', 'Oct.', 'Nov.', 'Dec.']
+
+    format = format.replace('%_d', dt.strftime('%d').lstrip('0'))
+    format = format.replace('%_m', _MONTH_ABBREVIATIONS[dt.month])
+    return dt.strftime(format)

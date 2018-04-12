@@ -1,17 +1,12 @@
 from datetime import date
-from urllib import urlencode
+from six.moves.urllib.parse import urlencode
 
 from django.core.validators import RegexValidator
 from django.db import models
-from localflavor.us.models import USStateField
+
 from wagtail.wagtailadmin.edit_handlers import (
-    FieldPanel,
-    FieldRowPanel,
-    InlinePanel,
-    MultiFieldPanel,
-    ObjectList,
-    StreamFieldPanel,
-    TabbedInterface
+    FieldPanel, FieldRowPanel, InlinePanel, MultiFieldPanel, ObjectList,
+    StreamFieldPanel, TabbedInterface
 )
 from wagtail.wagtailcore import blocks
 from wagtail.wagtailcore.fields import RichTextField, StreamField
@@ -19,9 +14,11 @@ from wagtail.wagtailcore.models import Page, PageManager
 from wagtail.wagtaildocs.edit_handlers import DocumentChooserPanel
 from wagtail.wagtailimages.edit_handlers import ImageChooserPanel
 
-from .. import blocks as v1_blocks
-from ..atomic_elements import molecules, organisms
-from .base import CFGOVPage, CFGOVPageManager
+from localflavor.us.models import USStateField
+
+from v1 import blocks as v1_blocks
+from v1.atomic_elements import molecules, organisms
+from v1.models.base import CFGOVPage, CFGOVPageManager
 
 
 class AbstractFilterPage(CFGOVPage):
@@ -51,7 +48,7 @@ class AbstractFilterPage(CFGOVPage):
 
     # Configuration tab panels
     settings_panels = [
-        MultiFieldPanel(Page.promote_panels, 'Settings'),
+        MultiFieldPanel(CFGOVPage.promote_panels, 'Settings'),
         InlinePanel('categories', label="Categories", max_num=2),
         FieldPanel('tags', 'Tags'),
         MultiFieldPanel([
@@ -89,9 +86,16 @@ class AbstractFilterPage(CFGOVPage):
             ObjectList(self.settings_panels, heading='Configuration'),
         ])
 
+    # Returns an image for the page's meta Open Graph tag
+    @property
+    def meta_image(self):
+        parent_meta = super(AbstractFilterPage, self).meta_image
+        return parent_meta or self.preview_image
+
 
 class LearnPage(AbstractFilterPage):
     content = StreamField([
+        ('info_unit_group_25_75_only', organisms.InfoUnitGroup2575Only()),
         ('image_text_25_75_group', organisms.ImageText2575Group()),
         ('well', organisms.Well()),
         ('full_width_text', organisms.FullWidthText()),
@@ -271,6 +275,10 @@ class EventPage(AbstractFilterPage):
     ])
 
     template = 'events/event.html'
+
+    @property
+    def page_js(self):
+        return super(EventPage, self).page_js + ['video-player.js']
 
     def location_image_url(self, scale='2', size='276x155', zoom='12'):
         center = 'Washington, DC'

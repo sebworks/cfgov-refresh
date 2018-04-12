@@ -1,8 +1,7 @@
-'use strict';
-
-var fs = require( 'fs' );
-var paths = require( '../config/environment' ).paths;
-var globAll = require( 'glob-all' );
+const fs = require( 'fs' );
+const environment = require( '../config/environment' );
+const paths = environment.paths;
+const globAll = require( 'glob-all' );
 
 module.exports = {
   pkg:    JSON.parse( fs.readFileSync( 'package.json' ) ), // eslint-disable-line no-sync, no-inline-comments, max-len
@@ -25,27 +24,44 @@ module.exports = {
       ' *  A public domain work of the Consumer Financial Protection Bureau\n' +
       ' */\n',
   lint: {
-    src: [ paths.unprocessed + '/js/**/*.js' ],
+    src: [
+      `${ paths.unprocessed }/js/**/*.js`,
+      `${ paths.unprocessed }/apps/**/js/**/*.js`,
+      `!${ paths.unprocessed }/apps/**/node_modules/**`
+    ],
     test:  [
+      paths.test + '/util/**/*.js',
       paths.test + '/unit_tests/**/*.js',
       paths.test + '/browser_tests/**/*.js'
     ],
     build: [
       'config/**/*.js',
       'gulpfile.js',
-      'gulp/**/*.js'
+      'gulp/**/*.js',
+      'scripts/npm/**/*.js',
+      'jest.config.js'
     ]
   },
   test: {
-    src:   paths.unprocessed + '/js/**/*.js',
-    tests: paths.test,
-    reporter: process.env.CONTINUOUS_INTEGRATION // eslint-disable-line no-process-env
+    src: [
+      paths.unprocessed + '/apps/**/js/**/*.js',
+      paths.unprocessed + '/js/**/*.js'
+    ],
+    reporter: environment.CONTINUOUS_INTEGRATION
   },
   clean: {
+    css: paths.processed + '/css',
+    js: paths.processed + '/js',
     dest: paths.processed
   },
   scripts: {
-    src: paths.unprocessed + '/js/**/*.js'
+    src: paths.unprocessed + '/js/**/*.js',
+    otherBuildTriggerFiles: [
+      paths.unprocessed + '/js/**/*.js',
+      paths.modules,
+      './config/**/*.js',
+      './gulp/**/*.js'
+    ]
   },
   styles: {
     cwd:      paths.unprocessed + '/css',
@@ -53,12 +69,26 @@ module.exports = {
     dest:     paths.processed + '/css',
     settings: {
       paths:  globAll.sync( [
-        paths.modules + '/capital-framework/**',
-        paths.modules + '/cfpb-chart-builder/**',
-        paths.lib
+        paths.modules + '/cf-*/src',
+        paths.modules + '/cfpb-chart-builder/src/**',
+        paths.modules + '/highcharts/css'
       ] ),
       compress: true
-    }
+    },
+    otherBuildTriggerFiles: [
+      paths.unprocessed + '/css/**/*.less',
+      paths.modules,
+      './config/**/*.js',
+      './gulp/**/*.js'
+    ],
+    otherBuildTriggerFilesKBSpanish: [
+      paths.legacy + '/knowledgebase/**/*.css',
+      paths.legacy + '/knowledgebase/**/*.less'
+    ],
+    otherBuildTriggerFilesNemo: [
+      paths.legacy + '/nemo/**/*.css',
+      paths.legacy + '/nemo/**/*.less'
+    ]
   },
   legacy: {
     cwd: paths.legacy,
@@ -73,36 +103,33 @@ module.exports = {
       paths.legacy + '/nemo/_/js/AnalyticsTarget.js'
     ]
   },
-  images: {
-    src:  paths.unprocessed + '/img/**',
-    dest: paths.processed + '/img'
-  },
   copy: {
-    codejson: {
+    jsonCode: {
       src:  'code.json',
       dest: paths.processed
     },
+    jsonKBYO: {
+      src:  `${ paths.unprocessed }/apps/know-before-you-owe/js/kbyo-timeline.json`,
+      dest: `${ paths.processed }/apps/know-before-you-owe/js`
+    },
     icons: {
-      src:  paths.modules + '/capital-framework/src/cf-icons/src/fonts/*',
+      src:  paths.modules + '/cf-icons/src/fonts/*',
       dest: paths.processed + '/fonts/'
     },
-    vendorFonts: {
-      src:  paths.unprocessed + '/fonts/pdfreactor/*',
-      dest: paths.processed + '/fonts/pdfreactor'
-    },
-    vendorCss: {
+    timelinejs: {
       src: [
-        paths.unprocessed + '/css/pdfreactor-fonts.css'
+        paths.modules + '/timelinejs/build/**/*'
       ],
-      dest: paths.processed + '/css'
+      dest: paths.processed + '/apps/timelinejs'
     },
-    vendorImg: {
-      src: [],
-      dest: paths.processed + '/img'
+    lightbox2: {
+      src: [
+        paths.modules + '/lightbox2/dist/**/*'
+      ],
+      dest: paths.processed + '/lightbox2'
     },
     vendorJs: {
       src: [
-        paths.modules + '/jquery/dist/jquery.min.js',
         paths.modules + '/ustream-embedapi/dist/ustream-embedapi.min.js'
       ],
       dest: paths.processed + '/js/'

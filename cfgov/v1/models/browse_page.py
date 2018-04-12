@@ -1,20 +1,20 @@
 from django.db import models
+
 from wagtail.wagtailadmin.edit_handlers import (
-    FieldPanel,
-    ObjectList,
-    StreamFieldPanel,
-    TabbedInterface
+    FieldPanel, ObjectList, StreamFieldPanel, TabbedInterface
 )
+from wagtail.wagtailcore import blocks
 from wagtail.wagtailcore.fields import StreamField
 from wagtail.wagtailcore.models import PageManager
 
-from data_research.blocks import ConferenceRegistrationForm
+from data_research.blocks import (
+    ConferenceRegistrationForm, MortgageDataDownloads
+)
 from jobmanager.models import JobListingTable
-
-from .. import blocks as v1_blocks
-from ..atomic_elements import molecules, organisms
-from ..util.util import get_secondary_nav_items
-from .base import CFGOVPage
+from v1 import blocks as v1_blocks
+from v1.atomic_elements import molecules, organisms
+from v1.models.base import CFGOVPage
+from v1.util.util import get_secondary_nav_items
 
 
 class BrowsePage(CFGOVPage):
@@ -25,6 +25,7 @@ class BrowsePage(CFGOVPage):
 
     content = StreamField([
         ('bureau_structure', organisms.BureauStructure()),
+        ('info_unit_group', organisms.InfoUnitGroup()),
         ('image_text_25_75_group', organisms.ImageText2575Group()),
         ('image_text_50_50_group', organisms.ImageText5050Group()),
         ('half_width_link_blob_group', organisms.HalfWidthLinkBlobGroup()),
@@ -39,9 +40,15 @@ class BrowsePage(CFGOVPage):
         ('job_listing_table', JobListingTable()),
         ('feedback', v1_blocks.Feedback()),
         ('conference_registration_form', ConferenceRegistrationForm()),
+        ('raw_html_block', blocks.RawHTMLBlock(
+            label='Raw HTML block')),
         ('html_block', organisms.HTMLBlock()),
         ('chart_block', organisms.ChartBlock()),
+        ('mortgage_chart_block', organisms.MortgageChartBlock()),
+        ('mortgage_map_block', organisms.MortgageMapBlock()),
+        ('mortgage_downloads_block', MortgageDataDownloads()),
         ('snippet_list', organisms.SnippetList()),
+        ('data_snapshot', organisms.DataSnapshot()),
     ], blank=True)
 
     secondary_nav_exclude_sibling_pages = models.BooleanField(default=False)
@@ -67,9 +74,11 @@ class BrowsePage(CFGOVPage):
 
     objects = PageManager()
 
-    def add_page_js(self, js):
-        super(BrowsePage, self).add_page_js(js)
-        js['template'] += ['secondary-navigation.js']
+    @property
+    def page_js(self):
+        return (
+            super(BrowsePage, self).page_js + ['secondary-navigation.js']
+        )
 
     def get_context(self, request, *args, **kwargs):
         context = super(BrowsePage, self).get_context(request, *args, **kwargs)

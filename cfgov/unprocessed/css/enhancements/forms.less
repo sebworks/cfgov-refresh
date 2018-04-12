@@ -1,49 +1,4 @@
-/* topdoc
-  name: Set form elements to base webfont
-  family: cf-core
-  tags:
-    - cf-core
-*/
-
-input[type="text"],
-input[type="search"],
-input[type="email"],
-input[type="url"],
-input[type="tel"],
-input[type="number"],
-textarea,
-select[multiple] {
-    .webfont-regular();
-}
-
-/* topdoc
-  name: Warning
-  family: cf-forms
-  notes:
-    - "Adds Warning state to form fields"
-  tags:
-    - cf-forms
-*/
-
-@input-warning:     @gold;
-
-input[type="text"],
-input[type="search"],
-input[type="email"],
-input[type="url"],
-input[type="tel"],
-input[type="number"],
-select[multiple],
-textarea {
-    &.warning {
-        border: 1px solid @input-warning;
-        outline: 1px solid @input-warning;
-    }
-}
-
-.warning + .@{cf-forms_input-icon-class} {
-    color: @input-warning;
-}
+// TODO: Move to the DM & CF
 
 /* topdoc
   name: Icon inside input
@@ -130,39 +85,24 @@ textarea {
 .input-contains-label {
     position: relative;
 
-    input[type="text"],
-    input[type="search"],
-    input[type="email"],
-    input[type="url"],
-    input[type="tel"],
-    input[type="number"] {
+    .a-text-input {
         box-sizing: border-box;
         width: 100%;
     }
 
-    &_before ~ input[type="text"],
-    &_before ~ input[type="search"],
-    &_before ~ input[type="email"],
-    &_before ~ input[type="url"],
-    &_before ~ input[type="tel"],
-    &_before ~ input[type="number"] {
-        padding-left: unit( 25px / @btn-font-size, em );
+    &_before ~ .a-text-input {
+        padding-left: unit( 30px / @btn-font-size, em );
 
         &.input__super {
-            padding-left: unit( 35px / @super-btn-font-size, em );
+            padding-left: unit( 40px / @btn__super-font-size, em );
         }
     }
 
-    &_after ~ input[type="text"],
-    &_after ~ input[type="search"],
-    &_after ~ input[type="email"],
-    &_after ~ input[type="url"],
-    &_after ~ input[type="tel"],
-    &_after ~ input[type="number"] {
+    &_after ~ .a-text-input {
         padding-right: unit( 30px / @btn-font-size, em );
 
         &.input__super {
-            padding-right: unit( 35px / @super-btn-font-size, em );
+            padding-right: unit( 35px / @btn__super-font-size, em );
         }
     }
 
@@ -185,15 +125,15 @@ textarea {
     &.input__super {
         .input-contains-label_before,
         .input-contains-label_after {
-            font-size: unit( @super-btn-font-size / @base-font-size-px, em );
+            font-size: unit( @btn__super-font-size / @base-font-size-px, em );
         }
 
         .input-contains-label_before {
-            left: unit( 12px / @super-btn-font-size, em );
+            left: unit( 12px / @btn__super-font-size, em );
         }
 
         .input-contains-label_after {
-            right: unit( 12px / @super-btn-font-size, em );
+            right: unit( 12px / @btn__super-font-size, em );
         }
     }
 
@@ -211,6 +151,9 @@ textarea {
 
     // Example of icon + label.
     // Add "x Clear" button to input field.
+    // TODO: Reconcile this with the clear button in m-btn-inside-input in
+    //       cf-forms. Clear button may need to be a label in CF to support
+    //       accessibility of focusing input when clear is clicked and hides.
     &_after__clear {
         &:before {
             .cf-icon();
@@ -222,40 +165,19 @@ textarea {
                 content: 'Clear';
             }
 
-            & ~ input[type="text"],
-            & ~ input[type="search"],
-            & ~ input[type="email"],
-            & ~ input[type="url"],
-            & ~ input[type="tel"],
-            & ~ input[type="number"] {
+            & ~ .a-text-input {
                 padding-right: unit( 65px / @btn-font-size, em );
 
                 &.input__super {
-                    padding-right: unit( 80px / @super-btn-font-size, em );
+                    padding-right: unit( 80px / @btn__super-font-size, em );
                 }
             }
         } );
     }
 }
 
-/* topdoc
-  name: Sets default styling for multi-selects
- */
 
-select[multiple] {
-    box-sizing: border-box;
-    width: 100%;
-    padding: 5px;
-}
-
-.form-label-header {
-    .heading-4();
-    margin-bottom: unit(10px / @font-size, em);
-
-    // TODO: These two properties can be removed when this is ported to CF
-    text-transform: none;
-    letter-spacing: 0;
-}
+// TODO: Move to the DM and update existing o-form__input-w-btn in CF
 
 /* topdoc
   name: Match the input to button
@@ -282,22 +204,7 @@ input {
     }
 }
 
-/* topdoc
-  name: Ensure form legends wrap in IE
-  family: cf-form
-  notes:
-    - "Legends do not wrap in IE. Different styles are
-      required to ensure wrapping in different versions."
-  tags:
-    - cf-form
-*/
-
-legend {
-  box-sizing: border-box; /* IE9-11 & Edge 12-13 */
-  display: table; /* IE8-11 */
-  max-width: 100%; /* Patch for IE9-11 & Edge 12-13 */
-  white-space: normal; /* IE8-11 */
-}
+// TODO: Move to the DM and update existing o-form__input-w-btn in CF
 
 /* topdoc
   name: Input with button bar
@@ -324,14 +231,14 @@ legend {
           .input-with-btn.input-with-btn__bar
             .input-with-btn_input
             .input-with-btn_btn
-  notes: "Displays as single unit, with button attached to end of input. 
+  notes: "Displays as single unit, with button attached to end of input.
           Input fills all space that is not needed for button."
   tags:
     - cf-form
 */
 
 .input-with-btn__bar {
-    display: table; 
+    display: table;
     width: 100%;
 
     @supports( display: flex ) {
@@ -356,11 +263,11 @@ legend {
     .input-with-btn_btn {
         margin: 0;
         border: 0;
-        display: table-cell; 
+        display: table-cell;
         // overrides default .input-with-btn_btn width.
         // setting button to very small width & input to 100%
         // means button will only take up space it needs
-        width: 1%; 
+        width: 1%;
         vertical-align: middle;
 
         @supports( display: flex ) {
@@ -374,6 +281,84 @@ legend {
             height: 33px;
         }
     }
+}
+
+
+
+// TODO: Move to the DM & CF
+
+/* ==========================================================================
+   Scale questions
+   ========================================================================== */
+
+@scale-point-count: 5;
+@radio-button-diameter: 18px;
+
+.o-scale {
+
+    + .o-scale {
+        padding-top: unit( 30px / @base-font-size-px, em );
+        border-top: 1px solid @gray-40;
+        margin-top: unit( 30px / @base-font-size-px, em );
+    }
+
+    .m-form-field + .m-form-field {
+        margin-top: 0;
+    }
+
+    .respond-to-min( @bp-sm-min, {
+        .m-form-field__radio {
+            width: percentage( 1 / @scale-point-count );
+
+            float: left;
+            position: relative;
+
+            &:not(:last-child):before {
+                border-top: 1px solid @gray-80;
+
+                position: absolute;
+                top: ( @radio-button-diameter / 2 );
+                right: 0;
+                left: 0;
+
+                content: '';
+            }
+        }
+
+        .a-label,
+        .a-label:before, {
+            display: block;
+        }
+
+        .a-label:before {
+            margin-bottom: unit( 3px / @base-font-size-px, em );
+
+            position: relative;
+            z-index: 1;
+        }
+    } );
+
+    .respond-to-max( @bp-lg-max, {
+        .o-scale_answer-prefix {
+            margin-bottom: unit( 15px / @base-font-size-px, em );
+        }
+    } );
+
+    .respond-to-min( @bp-xl-min, {
+        .o-scale_answer-prefix {
+            box-sizing: border-box;
+            padding-right: unit( 15px / @base-font-size-px, em );
+            width: 20%;
+
+            float: left;
+        }
+
+        .o-scale_answer-options {
+            width: 80%;
+
+            float: left;
+        }
+    } );
 }
 
 /* topdoc

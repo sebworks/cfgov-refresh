@@ -20,6 +20,7 @@ contact_phone = {
             {
                 "tty": "",
                 "number": "5151234567",
+                "extension": "1234",
                 "vanity": ""
             }
         ],
@@ -231,10 +232,30 @@ half_width_link_blob_group = {
     }
 }
 
+info_unit_group = {
+    "type": "info_unit_group",
+    "value": {
+        "heading": {
+            "text": "Info Unit Group",
+        },
+        "info_units": [
+            {
+                "body": "this is an info unit",
+                "links": [
+                    {
+                        "url": "/",
+                        "text": "test"
+                    }
+                ],
+            }
+        ]
+    }
+}
+
 html_block = {
     "type": "html_block",
     "value": {
-        "html_url": "http://raw.githubusercontent.com/cfpb/consumer-credit-trends/master/charts/auto-loans/borrower-age/figure-4a__30-to-44__auto-loans.html"  # noqa
+        "html_url": "https://raw.githubusercontent.com/cfpb/consumer-credit-trends/master/charts/auto-loans/borrower-age/figure-4a__30-to-44__auto-loans.html"  # noqa
     }
 }
 
@@ -257,12 +278,58 @@ email_signup = {
     }
 }
 
+email_signup_required = {
+    'type': 'email_signup',
+    'value': {
+        'heading': 'Email Sign Up',
+        'text': 'Sign up for our newsletter.',
+        'gd_code': 'TEST-GD-CODE',
+        'form_field': [
+            {
+                'btn_text': 'this is a form field with button',
+                'required': True,
+                'info': 'We will never share your email address.',
+                'label': 'Learn more',
+                'type': 'email',
+                'placeholder': 'email@domain.com',
+            }
+        ]
+    }
+}
+
 reg_comment = {
     "type": "reg_comment",
     "value": {
         'document_id': 'test document id',
         'generic_regs_link': True,
         'id': 'test id',
+    }
+}
+
+snippet_list_show_thumbnails_false = {
+    "type": "snippet_list",
+    "value": {
+        "heading": "Test Snippet List",
+        "snippet_type": "v1.models.snippets.Resource",
+        "show_thumbnails": False,
+    }
+}
+
+snippet_list_show_thumbnails_true = {
+    "type": "snippet_list",
+    "value": {
+        "heading": "Test Snippet List",
+        "snippet_type": "v1.models.snippets.Resource",
+        "show_thumbnails": True,
+    }
+}
+
+snippet_list_actions_column_width_40 = {
+    "type": "snippet_list",
+    "value": {
+        "heading": "Test Snippet List",
+        "snippet_type": "v1.models.snippets.Resource",
+        "actions_column_width": "40",
     }
 }
 
@@ -339,20 +406,40 @@ job_listing_table = {
     },
 }
 
-conference_registration_form = {
-    'type': 'conference_registration_form',
+data_snapshot = {
+    'type': u'data_snapshot',
     'value': {
-        'at_capacity_message': [
-            {
-                'type': 'content',
-                'value': 'Full.',
-            },
-        ],
-        'code': 'GDCODE',
-        'capacity': 100,
-        'failure_message': 'Oops.',
-        'heading': 'Register.',
-        'sessions': ['Morning', 'Afternoon'],
-        'success_message': 'Success!',
-    },
+        'market_key': u'AUT',
+        'num_originations': u'5 million',
+        'value_originations': u'$64 billion',
+        'year_over_year_change': u'5% increase',
+        'last_updated_projected_data': u'2015-01-01',
+        'num_originations_text': u'Auto loans originated',
+        'value_originations_text': u'Dollar value of new loans',
+        'year_over_year_change_text': u'In year-over-year originations',
+    }
+}
+
+chart_block = {
+    'type': u'chart_block',
+    'value': {
+        'title': u'Volume of credit cards originated',
+        'chart_type': u'Line',
+        'color_scheme': u'Green',
+        'data_source': u'foo/bar.csv',
+        'date_published': u'2018-01-01',
+        'description': u'Description',
+        'last_updated_projected_data': u'2016-04-01',
+        'note': 'Data not final',
+    }
+}
+
+filter_controls = {
+    'type': u'filter_controls',
+    'value': {
+        'form_type': u'filterable-list',
+        'categories': {
+            'page_type': '',
+        },
+    }
 }

@@ -1,78 +1,119 @@
-'use strict';
-
-var configTest = require( '../config' ).test;
-var envvars = require( '../../config/environment' ).envvars;
-var fsHelper = require( '../utils/fs-helper' );
-var gulp = require( 'gulp' );
-var gulpCoveralls = require( 'gulp-coveralls' );
-var gulpIstanbul = require( 'gulp-istanbul' );
-var gulpMocha = require( 'gulp-mocha' );
-var gulpUtil = require( 'gulp-util' );
-var isReachable = require( 'is-reachable' );
-var localtunnel = require( 'localtunnel' );
-var minimist = require( 'minimist' );
-var spawn = require( 'child_process' ).spawn;
-var psi = require( 'psi' );
-
+const ansiColors = require( 'ansi-colors' );
+const environment = require( '../../config/environment' );
+const envvars = environment.envvars;
+const fancyLog = require( 'fancy-log' );
+const fsHelper = require( '../utils/fs-helper' );
+const gulp = require( 'gulp' );
+const minimist = require( 'minimist' );
+const spawn = require( 'child_process' ).spawn;
+const SauceConnectTunnel = require( 'sauce-connect-tunnel' );
+const paths = environment.paths;
 
 /**
- * Run Mocha JavaScript unit tests.
+ * Run JavaScript unit tests.
  * @param {Function} cb - Callback function to call on completion.
  */
 function testUnitScripts( cb ) {
-  gulp.src( configTest.src )
-    .pipe( gulpIstanbul( {
-      includeUntested: false
-    } ) )
-    .pipe( gulpIstanbul.hookRequire() )
-    .on( 'finish', function() {
-      gulp.src( configTest.tests + '/unit_tests/**/*.js' )
-        .pipe( gulpMocha( {
-          reporter: configTest.reporter ? 'spec' : 'nyan'
-        } ) )
-        .pipe( gulpIstanbul.writeReports( {
-          dir: configTest.tests + '/unit_test_coverage'
-        } ) )
+  const params = minimist( process.argv.slice( 3 ) ) || {};
 
-        /* TODO: we want this but it breaks because we don't have good coverage
-        .pipe( gulpIstanbul.enforceThresholds( {
-          thresholds: { global: 90 }
-        } ) )
-        */
+  /* If --specs=path/to/js/spec flag is added on the command-line,
+     pass the value to mocha to test individual unit test files. */
+  let specs = params.specs;
 
-        .on( 'end', cb );
-    } );
-}
+  /* Set path defaults for source files.
+     Remove ./ from beginning of path,
+     which collectCoverageFrom doesn't support. */
+  const pathSrc = paths.unprocessed.substring( 2 );
 
-/**
+  // Set regex defaults.
+  let fileTestRegex = 'unit_tests/';
+  let fileSrcPath = pathSrc + '/';
 
- * Run tox Acceptance tests.
- */
-function testAcceptanceBrowser() {
-  var params = minimist( process.argv.slice( 2 ) );
-  var toxParams = [ '-e', 'acceptance' ];
-  var SPECS_KEY = 'specs';
+  // If --specs flag is passed, adjust regex defaults.
+  if ( specs ) {
+    fileSrcPath += specs;
+    // If the --specs argument is a file, strip it off.
+    if ( specs.slice( -3 ) === '.js' ) {
+      // TODO: Perform a more robust replacement here.
+      fileSrcPath = fileSrcPath.replace( '-spec', '' );
+      fileTestRegex += specs;
+    } else {
 
-  // Modifying specs format to pass to tox.
-  if ( params && params[SPECS_KEY] ) {
-    toxParams.push( SPECS_KEY + '=' + params[SPECS_KEY] );
+      // Ensure there's a trailing slash.
+      if ( specs.slice( -1 ) !== '/' ) {
+        specs += '/';
+      }
+
+      fileSrcPath += '**/*.js';
+      fileTestRegex += specs + '.*-spec.js';
+    }
+  } else {
+    fileSrcPath += '**/*.js';
+    fileTestRegex += '.*-spec.js';
   }
 
-  spawn( 'tox', toxParams, { stdio: 'inherit' } )
-  .once( 'close', function( code ) {
+  /*
+    The --no-cache flag is needed so the transforms don't cache.
+    If they are cached, preprocessor-handlebars.js can't find handlebars. See
+    https://facebook.github.io/jest/docs/en/troubleshooting.html#caching-issues
+  */
+  const jestOptions = [
+    '--no-cache',
+    '--config=jest.config.js',
+    `--collectCoverageFrom=${ fileSrcPath }`,
+    `--testRegex=${ fileTestRegex }`
+  ];
 
+  if ( params.travis ) {
+    jestOptions.push( '--runInBand' );
+  }
+
+  spawn(
+    fsHelper.getBinary( 'jest-cli', 'jest.js', '../bin' ),
+    jestOptions,
+    { stdio: 'inherit' }
+  ).once( 'close', code => {
     if ( code ) {
-      gulpUtil.log( 'Tox tests exited with code ' + code );
+      fancyLog( 'Unit tests exited with code ' + code );
       process.exit( 1 );
     }
-    gulpUtil.log( 'Tox tests done!' );
+    fancyLog( 'Unit tests done!' );
+    cb();
   } );
 }
 
 /**
+ * Run tox Acceptance tests.
+ */
+function testAcceptanceBrowser() {
+  const params = minimist( process.argv.slice( 3 ) ) || {};
+  const toxParams = [ '-e', 'acceptance' ];
+
+  if ( params.recreate ) {
+    delete params.recreate;
+    toxParams.push( '-r' );
+  }
+
+  Object.keys( params ).forEach( key => {
+    if ( key !== '_' ) {
+      toxParams.push( key + '=' + params[key] );
+    }
+  } );
+
+  spawn( 'tox', toxParams, { stdio: 'inherit' } )
+    .once( 'close', function( code ) {
+      if ( code ) {
+        fancyLog( 'Tox tests exited with code ' + code );
+        process.exit( 1 );
+      }
+      fancyLog( 'Tox tests done!' );
+    } );
+}
+
+/**
  * Add a command-line flag to a list of Protractor parameters, if present.
- * @param {object} protractorParams Parameters to pass to Protractor binary.
- * @param {object} commandLineParams Parameters passed
+ * @param {Object} protractorParams Parameters to pass to Protractor binary.
+ * @param {Object} commandLineParams Parameters passed
  *   to the command-line as flags.
  * @param {string} value Command-line flag name to lookup.
  * @returns {Array} List of Protractor binary parameters as strings.
@@ -81,6 +122,13 @@ function _addCommandLineFlag( protractorParams, commandLineParams, value ) {
   if ( typeof commandLineParams[value] === 'undefined' ) {
     return protractorParams;
   }
+
+  if ( value === 'tags' ) {
+    return protractorParams.concat( [ '--cucumberOpts.tags' +
+                                      '=' +
+                                      commandLineParams[value] ] );
+  }
+
   return protractorParams.concat( [ '--params.' +
                                     value + '=' +
                                     commandLineParams[value] ] );
@@ -92,21 +140,24 @@ function _addCommandLineFlag( protractorParams, commandLineParams, value ) {
  * @returns {Array} List of Protractor binary parameters as strings.
  */
 function _getProtractorParams( suite ) {
+  let UNDEFINED;
+  const commandLineParams = minimist( process.argv.slice( 2 ) );
+  const configFile = commandLineParams.a11y ?
+    'test/browser_tests/a11y_conf.js' :
+    'test/browser_tests/conf.js';
 
-  var commandLineParams = minimist( process.argv.slice( 2 ) );
-
-  var configFile = commandLineParams.a11y ?
-                  'test/browser_tests/a11y_conf.js' :
-                  'test/browser_tests/conf.js';
+  if ( typeof suite === 'function' ) {
+    suite = UNDEFINED;
+  }
 
   // Set default configuration command-line parameter.
-  var params = [ configFile ];
+  let params = [ configFile ];
 
   // If --sauce=false flag is added on the command-line.
   params = _addCommandLineFlag( params, commandLineParams, 'sauce' );
 
-  // If --specs=path/to/js flag is added on the command-line,
-  // pass the value to protractor to override the default specs to run.
+  /* If --specs=path/to/js flag is added on the command-line,
+     pass the value to protractor to override the default specs to run. */
   params = _addCommandLineFlag( params, commandLineParams, 'specs' );
 
   // If --windowSize=w,h flag is added on the command-line.
@@ -121,194 +172,150 @@ function _getProtractorParams( suite ) {
   // If --version=number flag is added on the command-line.
   params = _addCommandLineFlag( params, commandLineParams, 'version' );
 
-  // If the --suite=suite1,suite2 flag is added on the command-line
-  // or, if not, if a suite is passed as part of the gulp task definition.
-  var suiteParam = { suite: commandLineParams.suite || suite };
+  // If --tags=@tagName flag is added on the command-line.
+  params = _addCommandLineFlag( params, commandLineParams, 'tags' );
+
+  // If --headless=false flag is added on the command-line.
+  params = _addCommandLineFlag( params, commandLineParams, 'headless' );
+
+  /* If the --suite=suite1,suite2 flag is added on the command-line
+     or, if not, if a suite is passed as part of the gulp task definition. */
+  const suiteParam = { suite: commandLineParams.suite || suite };
   params = _addCommandLineFlag( params, suiteParam, 'suite' );
 
   return params;
 }
 
 /**
- * Processes command-line and environment variables
- * for passing to the wcag executable.
- * The URL host, port, and AChecker web API ID come from
- * environment variables, while the URL path comes
- * from the command-line `--u=` flag.
- * @returns {Array} Array of command-line arguments for wcag binary.
+ * Create Sauce Labs tunnel.
+ * @returns {Promise} Promise which creates Sauce Labs tunnel.
  */
-function _getWCAGParams() {
-  var commandLineParams = minimist( process.argv.slice( 2 ) );
-  var host = envvars.TEST_HTTP_HOST;
-  var port = envvars.TEST_HTTP_PORT;
-  var checkerId = envvars.ACHECKER_ID;
-  var urlPath = _parsePath( commandLineParams.u );
-  var url = host + ':' + port + urlPath;
-  gulpUtil.log( 'WCAG tests checking URL: http://' + url );
+function _createSauceTunnel( ) {
+  const SAUCE_USERNAME = envvars.SAUCE_USERNAME;
+  const SAUCE_ACCESS_KEY = envvars.SAUCE_ACCESS_KEY;
+  const SAUCE_TUNNEL_ID = envvars.SAUCE_TUNNEL;
 
-  return [ '--u=' + url, '--id=' + checkerId ];
-}
+  if ( !( SAUCE_USERNAME && SAUCE_ACCESS_KEY && SAUCE_TUNNEL_ID ) ) {
+    const ERROR_MSG = 'Please ensure your SAUCE variables are set.';
+    fancyLog( ansiColors.red( ERROR_MSG ) );
 
-/**
- * Processes command-line and environment variables
- * for passing to the PageSpeed Insights (PSI) executable.
- * An optional URL path comes from the command-line `--u=` flag.
- * A PSI "strategy" (mobile vs desktop) can be specified with the `--s=` flag.
- * @returns {Promise}
- *   Promise containing an array of command-line arguments for PSI binary.
- */
-function _createPSITunnel() {
-  var commandLineParams = minimist( process.argv.slice( 2 ) );
-  var host = envvars.TEST_HTTP_HOST;
-  var port = envvars.TEST_HTTP_PORT;
-  var path = _parsePath( commandLineParams.u );
-  var url = commandLineParams.u || host + ':' + port + path;
-  var strategy = commandLineParams.s || 'mobile';
+    return Promise.reject( new Error( ERROR_MSG ) );
+  }
 
-  /**
-   * Create local tunnel and pass promise params
-   * to callback function.
-   * @param {Boolean} reachable If port is reachable.
-   * @returns {Promise} A promise which calls local tunnel.
-   */
-  function _createLocalTunnel( reachable ) {
-    if ( !reachable ) {
-      return Promise.reject( url +
-        ' is not reachable. Is your local server running?'
-      );
-    }
+  return new Promise( ( resolve, reject ) => {
+    const sauceTunnel = new SauceConnectTunnel( SAUCE_USERNAME,
+      SAUCE_ACCESS_KEY,
+      SAUCE_TUNNEL_ID );
+    const sauceTunnelParam = { sauceTunnel: sauceTunnel };
 
-    return new Promise( ( resolve, reject ) => {
-      localtunnel( port, _localTunnelCallback.bind( null, resolve, reject ) );
+    sauceTunnel.on( 'verbose:debug', debugMsg => {
+      fancyLog( debugMsg );
     } );
-  }
 
-   /**
-   * Local tunnel callback function
-   * @param {Function} resolve Promise fulfillment callback.
-   * @param {Function} reject Promise rejection callback.
-   * @param {Error} err Local tunnel error.
-   * @param {object} tunnel Local tunnel object.
-   * @returns {Promise} callback promise.
-   */
-  function _localTunnelCallback( resolve, reject, err, tunnel ) {
-    if ( err ) {
-      return reject( 'Error: ' + err.message );
-    }
+    sauceTunnel.start( status => {
+      if ( status === false ) {
+        reject( sauceTunnelParam );
+      }
 
-    const url = tunnel.url + path;
+      if ( sauceTunnel.proc ) {
+        sauceTunnel.proc.on( 'exit', function() {
+          reject( sauceTunnelParam );
+        } );
+      }
 
-    return resolve( {
-      options: { strategy: strategy },
-      tunnel:  tunnel,
-      url:     url
+      setTimeout( () => {
+        resolve( sauceTunnelParam );
+      }, 5000 );
     } );
-  }
 
-  // Check if server is reachable.
-  return isReachable( url )
-         .then( _createLocalTunnel );
-}
-
-/**
- * Process a path and set it to an empty string if it's undefined
- * and add a leading slash if one is not present.
- * @param {string} urlPath The unprocessed path.
- * @returns {string} The processed path.
- */
-function _parsePath( urlPath ) {
-  urlPath = urlPath || '';
-  if ( urlPath.charAt( 0 ) !== '/' ) {
-    urlPath = '/' + urlPath;
-  }
-
-  return urlPath;
-}
-
-/**
- * Run WCAG accessibility tests.
- */
-function testA11y() {
-  spawn(
-    fsHelper.getBinary( 'wcag', 'wcag', '../.bin' ),
-    _getWCAGParams(),
-    { stdio: 'inherit' }
-  ).once( 'close', function( code ) {
-    if ( code ) {
-      gulpUtil.log( 'WCAG tests exited with code ' + code );
-      process.exit( 1 );
-    }
-    gulpUtil.log( 'WCAG tests done!' );
-  } );
-}
-
-/**
- * Run PageSpeed Insight tests.
- */
-function testPerf() {
-
-  function _runPSI( params ) {
-    gulpUtil.log( 'PSI tests checking URL: http://' + params.url );
-    psi.output( params.url, params.options )
-    .then( () => {
-      gulpUtil.log( 'PSI tests done!' );
-      params.tunnel.close();
-    } )
-    .catch( err => {
-      gulpUtil.log( err.message );
-      params.tunnel.close();
-      process.exit( 1 );
-    } );
-  }
-
-  _createPSITunnel()
-  .then( _runPSI )
-  .catch( err => {
-    console.log( err );
   } );
 }
 
 /**
  * Spawn the appropriate acceptance tests.
- * @param {string} suite Name of specific suite or suites to run, if any.
+ * @param {string} args Protractor arguments.
  */
-function spawnProtractor( suite ) {
-  var UNDEFINED;
+function spawnProtractor( ) {
+  const params = _getProtractorParams();
 
-  if ( typeof suite === 'function' ) {
-    suite = UNDEFINED;
+  /**
+   * Spawn the appropriate acceptance tests.
+   * @param {string} args Protractor arguments.
+   * @returns {Promise} Promise which runs Protractor.
+   */
+  function _runProtractor( args ) {
+    fancyLog( 'Running Protractor with params: ' + params );
+
+    return new Promise( ( resolve, reject ) => {
+      spawn(
+        fsHelper.getBinary( 'protractor', 'protractor', '../bin/' ),
+        params,
+        { stdio: 'inherit' }
+      ).once( 'close', code => {
+        if ( code ) {
+          fancyLog( 'Protractor tests exited with code ' + code );
+          reject( args );
+        }
+        fancyLog( 'Protractor tests done!' );
+        resolve( args );
+      } );
+    } );
   }
 
-  var params = _getProtractorParams( suite );
-  gulpUtil.log( 'Running Protractor with params: ' + params );
-  spawn(
-    fsHelper.getBinary( 'protractor', 'protractor', '../bin/' ),
-    params, {
-      stdio: 'inherit'
-    } ).once( 'close', function( code ) {
-      if ( code ) {
-        gulpUtil.log( 'Protractor tests exited with code ' + code );
+  /**
+   * Acceptance tests error handler.
+   * @param {string} args Failure arguments.
+   */
+  function _handleErrors( args = {} ) {
+    if ( args.sauceTunnel ) {
+      args.sauceTunnel.stop( () => {
         process.exit( 1 );
-      }
-      gulpUtil.log( 'Protractor tests done!' );
+      } );
+    } else {
+      process.exit( 1 );
     }
-  );
+  }
+
+  /**
+   * Acceptance tests success handler.
+   * @param {string} args Success arguments.
+   */
+  function _handleSuccess( args = {} ) {
+    if ( args.sauceTunnel ) {
+      args.sauceTunnel.stop( () => {
+        process.exit( 0 );
+      } );
+    } else {
+      process.exit( 0 );
+    }
+  }
+
+  const commandLineParams = minimist( process.argv.slice( 2 ) ) || {};
+  if ( commandLineParams.sauce === 'true' ) {
+    _createSauceTunnel()
+      .then( _runProtractor )
+      .then( _handleSuccess )
+      .catch( _handleErrors );
+  } else {
+    _runProtractor()
+      .then( _handleSuccess )
+      .catch( _handleErrors );
+  }
 }
 
-/**
- * Run coveralls reports on Travis.
- */
-function testCoveralls() {
-  gulp.src( configTest.tests + '/unit_test_coverage/lcov.info' )
-    .pipe( gulpCoveralls() );
-}
-
-
-gulp.task( 'test', [ 'lint', 'test:unit' ] );
-gulp.task( 'test:a11y', testA11y );
 gulp.task( 'test:acceptance', testAcceptanceBrowser );
 gulp.task( 'test:acceptance:protractor', spawnProtractor );
-gulp.task( 'test:coveralls', testCoveralls );
-gulp.task( 'test:perf', testPerf );
-gulp.task( 'test:unit', [ 'test:unit:scripts' ] );
 gulp.task( 'test:unit:scripts', testUnitScripts );
+
+gulp.task( 'test:unit',
+  gulp.parallel(
+    'test:unit:scripts'
+  )
+);
+
+gulp.task( 'test',
+  gulp.parallel(
+    'lint',
+    'test:unit'
+  )
+);

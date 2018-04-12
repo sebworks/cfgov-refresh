@@ -1,27 +1,25 @@
 from django.core.validators import URLValidator
 from django.db import models
-
-from modelcluster.fields import ParentalKey
-from modelcluster.models import ClusterableModel
-
-from taggit.models import TaggedItemBase
-from taggit.managers import TaggableManager
-
 from django.utils.encoding import python_2_unicode_compatible
+
 from wagtail.wagtailadmin.edit_handlers import FieldPanel, StreamFieldPanel
 from wagtail.wagtailcore.fields import RichTextField, StreamField
 from wagtail.wagtaildocs.edit_handlers import DocumentChooserPanel
 from wagtail.wagtailimages.edit_handlers import ImageChooserPanel
 from wagtail.wagtailsearch import index
-from wagtail.wagtailsnippets.blocks import SnippetChooserBlock
 from wagtail.wagtailsnippets.models import register_snippet
 
+from modelcluster.fields import ParentalKey
+from modelcluster.models import ClusterableModel
+from taggit.managers import TaggableManager
+from taggit.models import TaggedItemBase
+
 from v1.atomic_elements import molecules
-
-
-class ReusableTextChooserBlock(SnippetChooserBlock):
-    class Meta:
-        template = '_includes/snippets/reusable_text.html'
+# We import ReusableTextChooserBlock here because this is where it used to
+# live. That caused circular imports when it was imported into models. It's no
+# longer imported into models from this file, but there are migrations which
+# still look for it here.
+from v1.blocks import ReusableTextChooserBlock  # noqa
 
 
 @python_2_unicode_compatible
@@ -31,10 +29,19 @@ class ReusableText(index.Indexed, models.Model):
         verbose_name='Snippet title (internal only)',
         max_length=255
     )
+    sidefoot_heading = models.CharField(
+        blank=True,
+        max_length=255,
+        help_text='Applies "slug" style heading. '
+                  'Only for use in sidebars and prefooters '
+                  '(the "sidefoot"). See '
+                  '[GHE]/flapjack/Modules-V1/wiki/Atoms#slugs'
+    )
     text = RichTextField()
 
     search_fields = [
         index.SearchField('title', partial_match=True),
+        index.SearchField('sidefoot_heading', partial_match=True),
         index.SearchField('text', partial_match=True),
     ]
 
@@ -125,8 +132,7 @@ class Resource(ClusterableModel):
         blank=True,
         help_text='Snippets will be listed alphabetically by title in a '
         'Snippet List module, unless any in the list have a number in this '
-        'field; those with an order value will appear at the bottom of the '
-        'list, in ascending order.'
+        'field; those with an order value will appear in ascending order.'
     )
 
     tags = TaggableManager(

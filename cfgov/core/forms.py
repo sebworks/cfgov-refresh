@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import re
 
 from django import forms
@@ -5,6 +7,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.signing import BadSignature, Signer
 from django.utils.translation import ugettext_lazy as _
+
 
 EXTERNAL_URL_WHITELIST_RAW = getattr(settings, 'EXTERNAL_URL_WHITELIST', ())
 EXTERNAL_URL_WHITELIST = [re.compile(regex)
@@ -30,7 +33,7 @@ class ExternalURLForm(forms.Form):
         if matched_whitelist:
             cleaned_data['validated_url'] = url
 
-        elif 'signature' in cleaned_data:
+        elif cleaned_data.get('signature'):
             signed_url = "{ext_url}:{signature}".format(**cleaned_data)
             try:
                 cleaned_data['validated_url'] = signer.unsign(signed_url)

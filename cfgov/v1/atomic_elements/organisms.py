@@ -1,13 +1,16 @@
 import json
-import requests
+from functools import partial
+from six import string_types as basestring
 
 from django import forms
 from django.apps import apps
+from django.core.exceptions import ValidationError
+from django.forms.utils import ErrorList
 from django.template.loader import render_to_string
 from django.utils.encoding import smart_text
 from django.utils.functional import cached_property
-from functools import partial
-from jinja2 import Markup
+from django.utils.safestring import mark_safe
+
 from wagtail.contrib.table_block.blocks import TableBlock
 from wagtail.utils.widgets import WidgetWithScript
 from wagtail.wagtailcore import blocks
@@ -17,12 +20,13 @@ from wagtail.wagtailimages import blocks as images_blocks
 from wagtail.wagtailsnippets.blocks import SnippetChooserBlock
 from wagtail.wagtailsnippets.models import get_snippet_models
 
+import requests
+from jinja2 import Markup
+
+import ask_cfpb
 from v1 import blocks as v1_blocks
 from v1.atomic_elements import atoms, molecules
-from v1.models.snippets import Contact as ContactSnippetClass
-from v1.models.snippets import ReusableText, ReusableTextChooserBlock
 from v1.util import ref
-import ask_cfpb
 
 
 class Well(blocks.StructBlock):
@@ -31,17 +35,122 @@ class Well(blocks.StructBlock):
     class Meta:
         icon = 'title'
         template = '_includes/organisms/well.html'
-        classname = 'block__flush'
+
+
+class InfoUnitGroup(blocks.StructBlock):
+    format = blocks.ChoiceBlock(
+        choices=[
+            ('50-50', '50/50'),
+            ('33-33-33', '33/33/33'),
+            ('25-75', '25/75'),
+        ],
+        default='50-50',
+        label='Format',
+        help_text='Choose the number and width of info unit columns.',
+    )
+
+    heading = v1_blocks.HeadingBlock(required=False)
+
+    intro = blocks.RichTextBlock(
+        required=False,
+        help_text='If this field is not empty, '
+                  'the Heading field must also be set.'
+    )
+
+    link_image_and_heading = blocks.BooleanBlock(
+        default=True,
+        required=False,
+        help_text=('Check this to link all images and headings to the URL of '
+                   'the first link in their unit\'s list, if there is a link.')
+    )
+
+    has_top_rule_line = blocks.BooleanBlock(
+        default=False,
+        required=False,
+        help_text=('Check this to add a horizontal rule line to top of '
+                   'info unit group.')
+    )
+
+    lines_between_items = blocks.BooleanBlock(
+        default=False,
+        required=False,
+        label='Show rule lines between items',
+        help_text=('Check this to show horizontal rule lines between info '
+                   'units.')
+    )
+
+    info_units = blocks.ListBlock(molecules.InfoUnit())
+
+    sharing = blocks.StructBlock([
+        ('shareable', blocks.BooleanBlock(label='Include sharing links?',
+                                          help_text='If checked, share links '
+                                                    'will be included below '
+                                                    'the items.',
+                                          required=False)),
+        ('share_blurb', blocks.CharBlock(help_text='Sets the tweet text, '
+                                                   'email subject line, and '
+                                                   'LinkedIn post text.',
+                                         required=False)),
+    ])
+
+    def clean(self, value):
+        cleaned = super(InfoUnitGroup, self).clean(value)
+
+        # Intro paragraph may only be specified with a heading.
+        if cleaned.get('intro') and not cleaned.get('heading'):
+            raise ValidationError(
+                'Validation error in InfoUnitGroup: intro with no heading',
+                params={'heading': ErrorList([
+                    'Required if paragraph is not empty. (If it looks empty, '
+                    'click into it and hit the delete key a bunch of times.)'
+                ])}
+            )
+
+        # If 25/75, info units must have images.
+        if cleaned.get('format') == '25-75':
+            for unit in cleaned.get('info_units'):
+                if not unit['image']['upload']:
+                    raise ValidationError(
+                        ('Validation error in InfoUnitGroup: '
+                         '25-75 with no image'),
+                        params={'format': ErrorList([
+                            'Info units must include images when using the '
+                            '25/75 format. Search for an "FPO" image if you '
+                            'need a temporary placeholder.'
+                        ])}
+                    )
+
+        return cleaned
+
+    class Meta:
+        icon = 'list-ul'
+        template = '_includes/organisms/info-unit-group-2.html'
+
+
+class InfoUnitGroup2575Only(InfoUnitGroup):
+    format = blocks.ChoiceBlock(
+        choices=[
+            ('25-75', '25/75'),
+        ],
+        default='25-75',
+        label='Format',
+        help_text='25/75 is the only allowed format for this page type.',
+    )
+
+    class Meta:
+        label = 'Info unit group'
 
 
 class ImageText5050Group(blocks.StructBlock):
     heading = blocks.CharBlock(icon='title', required=False)
+
     link_image_and_heading = blocks.BooleanBlock(
         default=False,
         required=False,
         help_text=('Check this to link all images and headings to the URL of '
                    'the first link in their unit\'s list, if there is a link.')
     )
+
     sharing = blocks.StructBlock([
         ('shareable', blocks.BooleanBlock(label='Include sharing links?',
                                           help_text='If checked, share links '
@@ -211,7 +320,12 @@ class RelatedPosts(blocks.StructBlock):
 
 
 class MainContactInfo(blocks.StructBlock):
-    contact = SnippetChooserBlock(ContactSnippetClass)
+    contact = SnippetChooserBlock('v1.Contact')
+    has_top_rule_line = blocks.BooleanBlock(
+        default=False,
+        required=False,
+        help_text='Add a horizontal rule line to top of contact block.'
+    )
 
     class Meta:
         icon = 'wagtail'
@@ -359,6 +473,9 @@ class AtomicTableBlock(TableBlock):
         icon = 'table'
         template = '_includes/organisms/table.html'
         label = 'TableBlock'
+
+    class Media:
+        js = ['table.js']
 
 
 class ModelBlock(blocks.StructBlock):
@@ -553,7 +670,7 @@ class FullWidthText(blocks.StreamBlock):
     table = Table(editable=False)
     table_block = AtomicTableBlock(table_options={'renderer': 'html'})
     image_inset = molecules.ImageInset()
-    reusable_text = ReusableTextChooserBlock(ReusableText)
+    reusable_text = v1_blocks.ReusableTextChooserBlock('v1.ReusableText')
 
     class Meta:
         icon = 'edit'
@@ -591,9 +708,13 @@ class Expandable(BaseExpandable):
 class ExpandableGroup(blocks.StructBlock):
     heading = blocks.CharBlock(required=False)
     body = blocks.RichTextBlock(required=False)
-
     is_accordion = blocks.BooleanBlock(required=False)
-    has_rule = blocks.BooleanBlock(required=False)
+    has_top_rule_line = blocks.BooleanBlock(
+        default=False,
+        required=False,
+        help_text=('Check this to add a horizontal rule line to top of '
+                   'expandable group.')
+    )
 
     expandables = blocks.ListBlock(Expandable())
 
@@ -692,6 +813,9 @@ class VideoPlayer(blocks.StructBlock):
         icon = 'media'
         template = '_includes/organisms/video-player.html'
 
+    class Media:
+        js = ['video-player.js']
+
 
 class HTMLBlock(blocks.StructBlock):
     html_url = blocks.RegexBlock(
@@ -709,7 +833,7 @@ class HTMLBlock(blocks.StructBlock):
     def render(self, value, context=None):
         resp = requests.get(value['html_url'], timeout=5)
         resp.raise_for_status()
-        return self.render_basic(resp.content, context=context)
+        return mark_safe(resp.content)
 
     class Meta:
         label = 'HTML Block'
@@ -737,11 +861,26 @@ class ChartBlock(blocks.StructBlock):
     data_source = blocks.CharBlock(
         required=True,
         help_text='Location of the chart\'s data source relative to '
-                  '"http://files.consumerfinance.gov/data/". For example,'
+                  '"https://files.consumerfinance.gov/data/". For example,'
                   '"consumer-credit-trends/volume_data_Score_Level_AUT.csv".')
+    date_published = blocks.DateBlock(
+        help_text='Automatically generated when CCT cron job runs'
+    )
     description = blocks.CharBlock(
         required=True,
         help_text='Briefly summarize the chart for visually impaired users.')
+
+    has_top_rule_line = blocks.BooleanBlock(
+        default=False,
+        required=False,
+        help_text=('Check this to add a horizontal rule line to top of '
+                   'chart block.')
+    )
+
+    last_updated_projected_data = blocks.DateBlock(
+        help_text='Month of latest entry in dataset'
+    )
+
     metadata = blocks.CharBlock(
         required=False,
         help_text='Optional metadata for the chart to use. '
@@ -750,6 +889,9 @@ class ChartBlock(blocks.StructBlock):
         required=False,
         help_text='Text to display as a footnote. For example, '
                   '"Data from the last six months are not final."')
+    y_axis_label = blocks.CharBlock(
+        required=False,
+        help_text='Custom y-axis label')
 
     class Meta:
         label = 'Chart Block'
@@ -760,32 +902,102 @@ class ChartBlock(blocks.StructBlock):
         js = ['chart.js']
 
 
+class MortgageChartBlock(blocks.StructBlock):
+    content_block = blocks.RichTextBlock()
+    title = blocks.CharBlock(required=True, classname="title")
+    description = blocks.CharBlock(
+        required=False,
+        help_text='Chart summary for visually impaired users.')
+    note = blocks.CharBlock(
+        required=False,
+        help_text='Text for "Note" section of footnotes.')
+    has_top_rule_line = blocks.BooleanBlock(
+        default=False,
+        required=False,
+        help_text=('Check this to add a horizontal rule line to top of '
+                   'chart block.')
+    )
+
+    class Meta:
+        label = 'Mortgage Chart Block'
+        icon = 'image'
+        template = '_includes/organisms/mortgage-chart.html'
+
+    class Media:
+        js = ['mortgage-performance-trends.js']
+
+
+class MortgageMapBlock(MortgageChartBlock):
+
+    class Meta:
+        label = 'Mortgage Map Block'
+        icon = 'image'
+        template = '_includes/organisms/mortgage-map.html'
+
+    class Media:
+        js = ['mortgage-performance-trends.js']
+
+
+def get_snippet_type_choices():
+    return [
+        (
+            m.__module__ + '.' + m.__name__,
+            m._meta.verbose_name_plural.capitalize()
+        ) for m in get_snippet_models()
+    ]
+
+
+def get_snippet_field_choices():
+    return [
+        (
+            m._meta.verbose_name_plural.capitalize(),
+            getattr(m, 'snippet_list_field_choices', [])
+        ) for m in get_snippet_models()
+    ]
+
+
 class SnippetList(blocks.StructBlock):
     heading = blocks.CharBlock(required=False)
     body = blocks.RichTextBlock(required=False)
+    has_top_rule_line = blocks.BooleanBlock(
+        default=False,
+        required=False,
+        help_text=('Check this to add a horizontal rule line to top of '
+                   'snippet list.')
+    )
     image = atoms.ImageBasic(required=False)
+    actions_column_width = blocks.ChoiceBlock(
+        label='Width of "Actions" column',
+        required=False,
+        help_text='Choose the width in % that you wish to set '
+                  'the Actions column in a snippet list.',
+        choices=[
+            ('70', '70%'),
+            ('66', '66%'),
+            ('60', '60%'),
+            ('50', '50%'),
+            ('40', '40%'),
+            ('33', '33%'),
+            ('30', '30%'),
+        ],
+    )
 
     snippet_type = blocks.ChoiceBlock(
-        choices=[
-            (
-                m.__module__ + '.' + m.__name__,
-                m._meta.verbose_name_plural.capitalize()
-            ) for m in get_snippet_models()
-        ],
+        choices=get_snippet_type_choices,
         required=True
+    )
+    show_thumbnails = blocks.BooleanBlock(
+        required=False,
+        help_text='If selected, each snippet in the list will include a 150px-'
+                  'wide image from the snippet\'s thumbnail field.'
     )
     actions = blocks.ListBlock(blocks.StructBlock([
         ('link_label', blocks.CharBlock(
             help_text='E.g., "Download" or "Order free prints"'
         )),
         ('snippet_field', blocks.ChoiceBlock(
-            choices=[
-                (
-                    m._meta.verbose_name_plural.capitalize(),
-                    getattr(m, 'snippet_list_field_choices', [])
-                ) for m in get_snippet_models()
-            ],
-            help_text='Corresponds to the available fields for the selected'
+            choices=get_snippet_field_choices,
+            help_text='Corresponds to the available fields for the selected '
                       'snippet type.'
         )),
     ]))
@@ -811,3 +1023,50 @@ class AskCategoryCard(ModelList):
 
         template = '_includes/organisms/ask-cfpb-card.html'
         return render_to_string(template, value)
+
+
+class DataSnapshot(blocks.StructBlock):
+    """ A basic Data Snapshot object. """
+    # Market key corresponds to market short name for lookup
+    market_key = blocks.CharBlock(
+        max_length=20,
+        required=True,
+        help_text='Market identifier, e.g. AUT'
+    )
+    num_originations = blocks.CharBlock(
+        max_length=20,
+        help_text='Number of originations, e.g. 1.2 million'
+    )
+    value_originations = blocks.CharBlock(
+        max_length=20,
+        help_text='Total dollar value of originations, e.g. $3.4 billion'
+    )
+    year_over_year_change = blocks.CharBlock(
+        max_length=20,
+        help_text='Percentage change, e.g. 5.6% increase'
+    )
+
+    last_updated_projected_data = blocks.DateBlock(
+        help_text='Month of latest entry in dataset'
+    )
+    # Market-specific descriptor text
+    num_originations_text = blocks.CharBlock(
+        max_length=100,
+        help_text='Descriptive sentence, e.g. Auto loans originated'
+    )
+    value_originations_text = blocks.CharBlock(
+        max_length=100,
+        help_text='Descriptive sentence, e.g. Dollar volume of new loans'
+    )
+    year_over_year_change_text = blocks.CharBlock(
+        max_length=100,
+        help_text='Descriptive sentence, e.g. In year-over-year originations'
+    )
+
+    # Select an image
+    image = images_blocks.ImageChooserBlock(required=False, icon='image')
+
+    class Meta:
+        icon = 'image'
+        label = 'CCT Data Snapshot'
+        template = '_includes/organisms/data_snapshot.html'

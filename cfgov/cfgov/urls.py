@@ -1,4 +1,3 @@
-import os
 from functools import partial
 
 from django.conf import settings
@@ -9,48 +8,56 @@ from django.contrib.auth import views as auth_views
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.generic.base import RedirectView, TemplateView
+
+from wagtail.contrib.wagtailsitemaps.views import sitemap
 from wagtail.wagtailadmin import urls as wagtailadmin_urls
 from wagtailsharing import urls as wagtailsharing_urls
 from wagtailsharing.views import ServeView
 
-from flags.urls import flagged_url, flagged_urls
+from flags.urls import flagged_url
+from flags.views import FlaggedTemplateView
 
 from ask_cfpb.views import (
-    ask_search,
-    ask_autocomplete,
-    print_answer,
+    ask_autocomplete, ask_search, print_answer, redirect_ask_search,
     view_answer
 )
-import ccdb5.views as CCDB5
 from core.views import ExternalURLNoticeView
-from legacy.views import dbrouter_shortcut, token_provider
+from legacy.views import token_provider
 from legacy.views.housing_counselor import (
-    HousingCounselorView, HousingCounselorPDFView
+    HousingCounselorPDFView, HousingCounselorView
 )
 from sheerlike.sites import SheerSite
 from sheerlike.views.generic import SheerTemplateView
 from transition_utilities.conditional_urls import include_if_app_enabled
 from v1.auth_forms import CFGOVPasswordChangeForm
 from v1.views import (
-    change_password,
-    check_permissions,
-    login_with_lockout,
-    password_reset_confirm,
-    welcome)
+    change_password, check_permissions, login_with_lockout,
+    password_reset_confirm, welcome
+)
 from v1.views.documents import DocumentServeView
 
 
-fin_ed = SheerSite('fin-ed-resources')
 oah = SheerSite('owning-a-home')
 
-urlpatterns = [
 
+def flagged_wagtail_template_view(flag_name, template_name):
+    """View that serves Wagtail if a flag is set, and a template if not.
+
+    This uses the wagtail-sharing ServeView to ensure that sharing works
+    properly when viewing the page in Wagtail behind a flag.
+    """
+    return FlaggedTemplateView.as_view(
+        fallback=lambda request: ServeView.as_view()(request, request.path),
+        flag_name=flag_name,
+        template_name=template_name,
+        condition=False
+    )
+
+
+urlpatterns = [
     url(r'^documents/(?P<document_id>\d+)/(?P<document_filename>.*)$',
         DocumentServeView.as_view(),
         name='wagtaildocs_serve'),
-
-    # TODO: Enable search route when search is available.
-    # url(r'^search/$', 'search.views.search', name='search'),
 
     url(r'^home/(?P<path>.*)$',
         RedirectView.as_view(url='/%(path)s', permanent=True)),
@@ -61,14 +68,39 @@ urlpatterns = [
     url(r'^owning-a-home/resources/(?P<path>.*)$',
         RedirectView.as_view(
             url='/static/owning-a-home/resources/%(path)s', permanent=True)),
-
     url(r'^owning-a-home/closing-disclosure/',
-        include(oah.urls_for_prefix('closing-disclosure'))),
+        FlaggedTemplateView.as_view(
+            flag_name='OAH_FORM_EXPLAINERS',
+            template_name='owning-a-home/closing-disclosure/index.html',
+            fallback=SheerTemplateView.as_view(
+                template_engine='owning-a-home',
+                template_name='closing-disclosure/index.html'
+            )
+        ),
+        name='closing-disclosure'
+    ),
     url(r'^owning-a-home/explore-rates/',
-        include(oah.urls_for_prefix('explore-rates'))),
+        FlaggedTemplateView.as_view(
+            flag_name='OAH_EXPLORE_RATES',
+            template_name='owning-a-home/explore-rates/index.html',
+            fallback=SheerTemplateView.as_view(
+                template_engine='owning-a-home',
+                template_name='explore-rates/index.html'
+            )
+        ),
+        name='explore-rates'
+    ),
     url(r'^owning-a-home/loan-estimate/',
-        include(oah.urls_for_prefix('loan-estimate'))),
-
+        FlaggedTemplateView.as_view(
+            flag_name='OAH_FORM_EXPLAINERS',
+            template_name='owning-a-home/loan-estimate/index.html',
+            fallback=SheerTemplateView.as_view(
+                template_engine='owning-a-home',
+                template_name='loan-estimate/index.html'
+            )
+        ),
+        name='loan-estimate'
+    ),
     url(r'^owning-a-home/loan-options/',
         include(oah.urls_for_prefix('loan-options'))),
     url(r'^owning-a-home/loan-options/FHA-loans/',
@@ -77,57 +109,91 @@ urlpatterns = [
         include(oah.urls_for_prefix('loan-options/conventional-loans/'))),
     url(r'^owning-a-home/loan-options/special-loan-programs/',
         include(oah.urls_for_prefix('loan-options/special-loan-programs/'))),
-
     url(r'^owning-a-home/mortgage-closing/',
-        include(oah.urls_for_prefix('mortgage-closing'))),
+        TemplateView.as_view(
+            template_name='owning-a-home/mortgage-closing/index.html'
+        ),
+        name='mortgage-closing'
+    ),
     url(r'^owning-a-home/mortgage-estimate/',
-        include(oah.urls_for_prefix('mortgage-estimate'))),
+        TemplateView.as_view(
+            template_name='owning-a-home/mortgage-estimate/index.html',
+        ),
+        name='mortgage-estimate'
+    ),
 
-    url(r'^owning-a-home/process/',
-        include(oah.urls_for_prefix('process/prepare/'))),
-    url(r'^owning-a-home/process/prepare/',
-        include(oah.urls_for_prefix('process/prepare/'))),
-    url(r'^owning-a-home/process/explore/',
-        include(oah.urls_for_prefix('process/explore/'))),
-    url(r'^owning-a-home/process/compare/',
-        include(oah.urls_for_prefix('process/compare/'))),
-    url(r'^owning-a-home/process/close/',
-        include(oah.urls_for_prefix('process/close/'))),
-    url(r'^owning-a-home/process/sources/',
-        include(oah.urls_for_prefix('process/sources/'))),
+    # Temporarily serve sheer version of OAH Journey sources page.
+    # TODO: remove once page is migrated into Wagtail.
+    flagged_url('OAH_JOURNEY_SHEER_SOURCE_PAGE',
+        r'^owning-a-home/process/sources(?P<path>.*)$',
+        lambda req, path: SheerTemplateView.as_view(
+            template_engine='owning-a-home',
+            template_name='process/sources{}index.html'.format(path or '/')
+        )(req),
+        fallback=lambda req, path: ServeView.as_view()(
+            req, 'owning-a-home/sources{}'.format(path or '/')
+        ),
+    ),
+    # END TODO
 
-    # the redirect is an unfortunate workaround, could be resolved by
-    # using static('path/to/asset') in the source template
-    url(r'^know-before-you-owe/static/(?P<path>.*)$',
-        RedirectView.as_view(
-            url='/static/know-before-you-owe/static/%(path)s',
-            permanent=True)),
-    url(r'^know-before-you-owe/',
-        include(SheerSite('know-before-you-owe').urls)),
+    # Temporarily serve Wagtail OAH journey pages at `/process/` urls.
+    # TODO: change to redirects after 2018 homebuying campaign.
+    flagged_url('OAH_JOURNEY', r'^owning-a-home/process/(?P<path>.*)$',
+        lambda req, path: ServeView.as_view()(
+            req, 'owning-a-home/{}'.format(path or 'prepare/')
+        ),
+        fallback=lambda req, path: SheerTemplateView.as_view(
+            template_engine='owning-a-home',
+            template_name='process/{}/index.html'.format(path or 'prepare')
+        )(req)
+    ),
+    # END TODO
 
-    url(r'^adult-financial-education/',
-        include(fin_ed.urls_for_prefix('adult-financial-education'))),
-    url(r'^library-resources/',
-        include(fin_ed.urls_for_prefix('library-resources'))),
+    url(r'^know-before-you-owe/$',
+        TemplateView.as_view(
+        template_name='know-before-you-owe/index.html'),
+        name='know-before-you-owe'),
+    url(r'^know-before-you-owe/timeline/$',
+        TemplateView.as_view(
+        template_name='know-before-you-owe/timeline/index.html'),
+        name='kbyo-timeline'),
+    url(r'^know-before-you-owe/compare/$',
+        TemplateView.as_view(
+        template_name='know-before-you-owe/compare/index.html'),
+        name='kbyo-compare'),
+    url(r'^fin-ed/privacy-act-statement/$',
+        TemplateView.as_view(
+        template_name='/adult-financial-education/'
+                      'privacy-act-statement/index.html')),
+    url(r'^your-story/$', TemplateView.as_view(
+        template_name='/your-story/index.html')),
+    url(r'^fair-lending/$', TemplateView.as_view(
+        template_name='fair-lending/index.html'),
+        name='fair-lending'),
+
+    url(r'^practitioner-resources/students/$', TemplateView.as_view(
+        template_name='students/index.html'),
+        name='students'),
+    url(r'^practitioner-resources/students/knowbeforeyouowe/$',
+        TemplateView.as_view(
+            template_name='students/knowbeforeyouowe/index.html'),
+            name='students-knowbeforeyouowe'),
+    url(r'^practitioner-resources/students/'
+         'helping-borrowers-find-ways-to-stay-afloat/$',
+            TemplateView.as_view(
+                template_name='students/helping-borrowers-find-'
+                              'ways-to-stay-afloat/index.html'),
+                name='students-helping-borrowers'),
+
     url(r'^parents/(?P<path>.*)$',
         RedirectView.as_view(
             url='/money-as-you-grow/%(path)s', permanent=True)),
-    url(r'fin-ed/privacy-act-statement/',
-        include(fin_ed.urls_for_prefix('privacy-act-statement'))),
     url(r'^blog/(?P<path>.*)$',
         RedirectView.as_view(
             url='/about-us/blog/%(path)s', permanent=True)),
     url(r'^newsroom/(?P<path>.*)$',
         RedirectView.as_view(
             url='/about-us/newsroom/%(path)s', permanent=True)),
-
-    flagged_url(
-        'WAGTAIL_ABOUT_US',
-        r'^about-us/newsroom/press-resources/$',
-        lambda req: ServeView.as_view()(req, req.path),
-        fallback=TemplateView.as_view(
-            template_name='newsroom/press-resources/index.html'),
-        name='press-resources'),
 
     url(r'^the-bureau/(?P<path>.*)$',
             RedirectView.as_view(url='/about-us/the-bureau/%(path)s',
@@ -140,22 +206,6 @@ urlpatterns = [
     url(r'^doing-business-with-us/(?P<path>.*)$',
         RedirectView.as_view(
             url='/about-us/doing-business-with-us/%(path)s', permanent=True)),
-    url(r'^about-us/doing-business-with-us/', include([
-        flagged_url(
-            'WAGTAIL_DOING_BUSINESS_WITH_US',
-            r'^$',
-            lambda req: ServeView.as_view()(req, req.path),
-            fallback=TemplateView.as_view(
-                template_name='about-us/doing-business-with-us/index.html'),
-            name='index'),
-        flagged_url(
-            'WAGTAIL_DOING_BUSINESS_WITH_US',
-            r'^(?P<page_slug>[\w-]+)/$',
-            lambda req, page_slug: ServeView.as_view()(req, req.path),
-            fallback=SheerTemplateView.as_view(),
-            name='page')
-        ],
-        namespace='business')),
 
     url(r'^external-site/$', ExternalURLNoticeView.as_view(),
         name='external-site'),
@@ -214,14 +264,6 @@ urlpatterns = [
     url(r'^newsroom-feed/$',
         RedirectView.as_view(url='/about-us/newsroom/feed/', permanent=True)),
 
-    flagged_url(
-        'WAGTAIL_ABOUT_US',
-        r'^about-us/$',
-        lambda req: ServeView.as_view()(req, req.path),
-        fallback=SheerTemplateView.as_view(
-            template_name='about-us/index.html'),
-        name='about-us'),
-
     url(r'^careers/(?P<path>.*)$', RedirectView.as_view(
         url='/about-us/careers/%(path)s', permanent=True)),
 
@@ -237,40 +279,35 @@ urlpatterns = [
         include_if_app_enabled(
             'paying_for_college', 'paying_for_college.config.urls')),
     url(r'^credit-cards/agreements/',
-        include_if_app_enabled('agreements', 'agreements.urls')),
-    url(r'^selfregs/',
-        include_if_app_enabled('selfregistration', 'selfregistration.urls')),
+        include('agreements.urls')),
     url(r'^hud-api-replace/', include_if_app_enabled(
         'hud_api_replace',
         'hud_api_replace.urls',
         namespace='hud_api_replace')),
-    url(r'^retirement/',
+    url(r'^consumer-tools/retirement/',
         include_if_app_enabled('retirement_api', 'retirement_api.urls')),
 
-    # If 'MOSAIC_COMPLAINTS' is false, include complaint.urls.
-    # Otherwise fallback to Wagtail if MOSAIC_COMPLAINTS is true.
-    flagged_url('MOSAIC_COMPLAINTS',
-                r'^complaint/',
-                include_if_app_enabled('complaint', 'complaint.urls'),
-                fallback=lambda req: ServeView.as_view()(req, req.path),
-                state=False),
+    url(r'^data-research/consumer-complaints/',
+        include_if_app_enabled('complaintdatabase', 'complaintdatabase.urls')),
 
-    # If 'CCDB5_RELEASE' is false, include CCDB4 urls.
-    # Otherwise use CCDB5.
+    # CCDB5-API
     flagged_url('CCDB5_RELEASE',
-                r'^data-research/consumer-complaints/',
-                include_if_app_enabled(
-                    'complaintdatabase', 'complaintdatabase.urls'
+                r'^data-research/consumer-complaints/search/api/v1/',
+                include_if_app_enabled('complaint_search',
+                                       'complaint_search.urls')
                 ),
-                state=False,
-                fallback=TemplateView.as_view(
-                    template_name='ccdb5_landing_page.html'
+    # If 'CCDB5_RELEASE' is True, include CCDB5 urls.
+    flagged_url('CCDB5_RELEASE',
+                r'^data-research/consumer-complaints/search/',
+                include_if_app_enabled(
+                    'ccdb5_ui', 'ccdb5_ui.config.urls'
                 )),
 
     url(r'^oah-api/rates/',
         include_if_app_enabled('ratechecker', 'ratechecker.urls')),
     url(r'^oah-api/county/',
         include_if_app_enabled('countylimits', 'countylimits.urls')),
+
     url(r'^eregs-api/',
         include_if_app_enabled('regcore', 'regcore.urls')),
     url(r'^eregulations/',
@@ -279,7 +316,10 @@ urlpatterns = [
     url(r'^find-a-housing-counselor/$',
         HousingCounselorView.as_view(),
         name='housing-counselor'),
-    url(r'^save-hud-counselors-list/$', HousingCounselorPDFView.as_view()),
+    url(r'^save-hud-counselors-list/$',
+        HousingCounselorPDFView.as_view(),
+        name='housing-counselor-pdf'),
+
     # Report redirects
     url(r'^reports/(?P<path>.*)$',
         RedirectView.as_view(
@@ -301,17 +341,118 @@ urlpatterns = [
         name='cckbyo'),
     # Form csrf token provider for JS form submission
     url(r'^token-provider/', token_provider),
+
+    # data-research-api
+    url(r'^data-research/mortgages/api/v1/',
+        include_if_app_enabled('data_research', 'data_research.urls')),
+
+    # educational resources
+    url(r'^educational-resources/(?P<path>.*)$', RedirectView.as_view(
+        url='/practitioner-resources/%(path)s', permanent=True)),
+    url(r'^practitioner-resources/resources-for-older-adults' +
+         '/managing-someone-elses-money/(?P<path>.*)$',
+            RedirectView.as_view(
+                url='/consumer-tools/managing-someone-elses-money/%(path)s',
+                permanent=True)),
+    url(r'^practitioner-resources/money-as-you-grow/(?P<path>.*)$',
+            RedirectView.as_view(
+                url='/consumer-tools/money-as-you-grow/%(path)s',
+                permanent=True)),
+
+    # retirement redirects
+    url(r'^retirement/(?P<path>.*)$', RedirectView.as_view(
+            url='/consumer-tools/retirement/%(path)s',
+            permanent=True)),
+
+    # empowerment redirects
+    url(r'^empowerment/$', RedirectView.as_view(
+            url='/practitioner-resources/economically-vulnerable/',
+            permanent=True)),
+
+    # students redirects
+    url(r'^students/(?P<path>.*)$', RedirectView.as_view(
+            url='/practitioner-resources/students/%(path)s',
+            permanent=True)),
+
+    # ask-cfpb
+    url(r'^askcfpb/$',
+        RedirectView.as_view(
+            url='/ask-cfpb/',
+            permanent=True)),
+    url(r'^(?P<language>es)/obtener-respuestas/c/(.+)/(?P<ask_id>\d+)/(.+)\.html$',  # noqa: E501
+         RedirectView.as_view(
+             url='/es/obtener-respuestas/slug-es-%(ask_id)s',
+             permanent=True)),
+    url(r'^askcfpb/(?P<ask_id>\d+)/(.*)$',
+         RedirectView.as_view(
+             url='/ask-cfpb/slug-en-%(ask_id)s',
+             permanent=True)),
+    url(r'^askcfpb/search/',
+        redirect_ask_search,
+        name='redirect-ask-search'),
+    url(r'^(?P<language>es)/obtener-respuestas/buscar/$',
+        ask_search,
+        name='ask-search-es'),
+    url(r'^(?P<language>es)/obtener-respuestas/buscar/(?P<as_json>json)/$',
+        ask_search,
+        name='ask-search-es-json'),
+    url(r'^(?i)ask-cfpb/([-\w]{1,244})-(en)-(\d{1,6})/$',
+        view_answer,
+        name='ask-english-answer'),
+    url(r'^es/obtener-respuestas/([-\w]{1,244})-(es)-(\d{1,6})/$',
+        view_answer,
+        name='ask-spanish-answer'),
+    url(r'^es/obtener-respuestas/([-\w]{1,244})-(es)-(\d{1,6})/imprimir/$',
+        print_answer,
+        name='ask-spanish-print-answer'),
+    url(r'^(?i)ask-cfpb/search/$',
+        ask_search,
+        name='ask-search-en'),
+    url(r'^(?i)ask-cfpb/search/(?P<as_json>json)/$',
+        ask_search,
+        name='ask-search-en-json'),
+    url(r'^(?i)ask-cfpb/api/autocomplete/$',
+        ask_autocomplete, name='ask-autocomplete-en'),
+    url(r'^(?P<language>es)/obtener-respuestas/api/autocomplete/$',
+        ask_autocomplete, name='ask-autocomplete-es'),
+
+    url(r'^es/$', TemplateView.as_view(
+                 template_name='/es/index.html')),
+
+    url(r'^es/comprar-casa/$', TemplateView.as_view(
+                 template_name='es/comprar-casa/index.html')),
+
+    url(r'^es/nuestra-historia/$', TemplateView.as_view(
+                 template_name='es/nuestra-historia/index.html')),
+
+    url(r'^es/presentar-una-queja/$', TemplateView.as_view(
+                 template_name='es/presentar-una-queja/index.html')),
+
+    url(r'^es/quienes-somos/$', TemplateView.as_view(
+                 template_name='es/quienes-somos/index.html')),
+
+    url(r'^_status/', include_if_app_enabled('watchman', 'watchman.urls')),
+
+    url(
+        r'^(?i)consumer-tools/financial-well-being/',
+        include('wellbeing.urls')
+    ),
+
+    url('^sitemap\.xml$', sitemap),
+
+    flagged_url('SEARCH_DOTGOV_API',
+                r'^search/',
+                include('search.urls')),
+
+    flagged_url('TDP_RELEASE',
+                r'^tdp/',
+                include_if_app_enabled('teachers_digital_platform',
+                                       'teachers_digital_platform.urls')),
+
+    flagged_url('REGULATIONS3K',
+                r'^regulations3k/',
+                include_if_app_enabled('regulations3k', 'regulations3k.urls')),
 ]
-
-with flagged_urls('CCDB5_RELEASE') as _url:
-    apiBase = '^data-research/consumer-complaints/api/v1'
-    ccdb5_patterns = [
-        _url(apiBase + '/_suggest', CCDB5.suggest),
-        _url(apiBase + '/(?P<id>[0-9]+)$', CCDB5.document),
-        _url(apiBase, CCDB5.search)
-    ]
-urlpatterns += ccdb5_patterns
-
 
 if settings.ALLOW_ADMIN_URL:
     patterns = [
@@ -333,8 +474,10 @@ if settings.ALLOW_ADMIN_URL:
         url(r'^d/admin/(?P<path>.*)$',
             RedirectView.as_view(url='/django-admin/%(path)s',
                                  permanent=True)),
-        url(r'^picard/(?P<path>.*)$',
-            RedirectView.as_view(url='/tasks/%(path)s', permanent=True)),
+
+        url(r'^tasks/(?P<path>.*)$',
+            RedirectView.as_view(url='/admin/cdn/%(path)s', permanent=True)),
+
         url(r'^django-admin/password_change',
             change_password,
             name='django_admin_account_change_password'),
@@ -360,38 +503,9 @@ if settings.ALLOW_ADMIN_URL:
 
     ]
 
-    if os.environ.get('DATABASE_ROUTING', False):
-        patterns = [
-            url(r'^django-admin/r/(?P<content_type_id>\d*)/(?P<object_id>\d*)/$',  # noqa: E501
-                dbrouter_shortcut)
-        ] + patterns
-
-    if 'picard' in settings.INSTALLED_APPS:
-        patterns.append(url(r'^tasks/', include('picard.urls')))
-
-    if 'selfregistration' in settings.INSTALLED_APPS:
-        patterns.append(url(r'^selfregs/', include('selfregistration.urls')))
-
-    if 'csp.middleware.CSPMiddleware' in settings.MIDDLEWARE_CLASSES:
-        # allow browsers to push CSP error reports back to the server
-        patterns.append(url(r'^csp-report/',
-                            'core.views.csp_violation_report'))
-
     urlpatterns = patterns + urlpatterns
 
-
-if 'selfregistration' in settings.INSTALLED_APPS:
-    from selfregistration.views import CompanySignup
-    pattern = url(r'^company-signup/', CompanySignup.as_view())
-    urlpatterns.append(pattern)
-
 if settings.DEBUG:
-    urlpatterns.append(
-        url(r'^test-fixture/$',
-            SheerTemplateView.as_view(
-                template_name='test-fixture/index.html'),
-            name='test-fixture')
-    )
     urlpatterns += static(settings.MEDIA_URL,
                           document_root=settings.MEDIA_ROOT)
 
@@ -413,51 +527,7 @@ if settings.DEBUG:
     except ImportError:
         pass
 
-if settings.DEPLOY_ENVIRONMENT != 'build':
-    kb_patterns = [
-        url(r'^(?i)askcfpb/',
-            include_if_app_enabled(
-                'knowledgebase', 'knowledgebase.urls')),
-        url(r'^es/obtener-respuestas/',
-            include_if_app_enabled(
-                'knowledgebase', 'knowledgebase.babel_urls')),
-    ]
-    urlpatterns += kb_patterns
-
-
-if settings.DEPLOY_ENVIRONMENT == 'build':
-    ask_patterns = [
-        url(r'^(?i)ask-cfpb/([-\w]{1,244})-(en)-(\d{1,6})/?$',
-            view_answer,
-            name='ask-english-answer'),
-        url(r'^es/obtener-respuestas/([-\w]{1,244})-(es)-(\d{1,6})/?$',
-            view_answer,
-            name='ask-spanish-answer'),
-        url(r'^es/obtener-respuestas/([-\w]{1,244})-(es)-(\d{1,6})/imprimir/?$',  # noqa: E501
-            print_answer,
-            name='ask-spanish-print-answer'),
-        url(r'^(?i)ask-cfpb/search/$',
-            ask_search,
-            name='ask-search-en'),
-        url(r'^(?i)ask-cfpb/search/(?P<as_json>json)/$',
-            ask_search,
-            name='ask-search-en-json'),
-        url(r'^(?P<language>es)/obtener-respuestas/buscar/$',
-            ask_search,
-            name='ask-search-es'),
-        url(r'^(?P<language>es)/obtener-respuestas/buscar/(?P<as_json>json)/$',
-            ask_search,
-            name='ask-search-es-json'),
-        url(r'^(?i)ask-cfpb/api/autocomplete/$',
-            ask_autocomplete, name='ask-autocomplete-en'),
-        url(r'^(?P<language>es)/obtener-respuestas/api/autocomplete/$',
-            ask_autocomplete, name='ask-autocomplete-es'),
-    ]
-    urlpatterns += ask_patterns
-
-
 # Catch remaining URL patterns that did not match a route thus far.
-
 urlpatterns.append(url(r'', include(wagtailsharing_urls)))
 # urlpatterns.append(url(r'', include(wagtailsharing_urls)))
 
@@ -473,6 +543,7 @@ def handle_error(code, request):
 
         return HttpResponse("This request could not be processed, "
                             "HTTP Error %s." % str(code), status=code)
+
 
 handler404 = partial(handle_error, 404)
 handler500 = partial(handle_error, 500)

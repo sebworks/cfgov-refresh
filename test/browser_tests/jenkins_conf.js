@@ -1,14 +1,12 @@
-'use strict';
-
-var environment = require( './environment.js' );
-var envvars = require( '../../config/environment' ).envvars;
-var JasmineReporters = require( 'jasmine-reporters' );
-var JasmineSpecReporter = require( 'jasmine-spec-reporter' );
-var mkdirp = require( 'mkdirp' );
+const environmentTest = require( './environmentTest' );
+const envvars = require( '../../config/environment' ).envvars;
+const JasmineReporters = require( 'jasmine-reporters' );
+const JasmineSpecReporter = require( 'jasmine-spec-reporter' );
+const mkdirp = require( 'mkdirp' );
 
 exports.config = {
   framework:    'jasmine2',
-  specs:        [ environment.specsBasePath + '.js' ],
+  specs:        [ environmentTest.specsBasePath + '.js' ],
   capabilities: {
     'browserName':       'chrome',
     'name':              'flapjack-browser-tests ' + envvars.SITE_DESC,
@@ -27,13 +25,13 @@ exports.config = {
       new JasmineSpecReporter( { displayStacktrace: true } )
     );
 
-    var newFolder = 'reports/';
+    const newFolder = 'reports/';
 
     mkdirp( newFolder, function( err ) {
       if ( err ) {
         console.error( err );
       } else {
-        var jUnitXmlReporter = new JasmineReporters.JUnitXmlReporter( {
+        const jUnitXmlReporter = new JasmineReporters.JUnitXmlReporter( {
           consolidateAll: true,
           savePath:       newFolder,
           filePrefix:     'test-results'

@@ -14,13 +14,18 @@ init() {
   # Set cli_flag variable.
   source cli-flag.sh 'Front end' $1
 
-  NODE_DIR=node_modules
-  if [ -f "npm-shrinkwrap.json" ]; then
-    DEP_CHECKSUM=$(cat npm-shrinkwrap.json package.json | shasum -a 256)
+  if [ -f "package-lock.json" ]; then
+    DEP_CHECKSUM=$(cat package*.json cfgov/unprocessed/apps/**/package*.json | shasum -a 256)
   else
-    DEP_CHECKSUM=$(cat package.json | shasum -a 256)
+    DEP_CHECKSUM=$(cat package.json cfgov/unprocessed/apps/**/package.json | shasum -a 256)
   fi
 
+  if [[ "$(node -v)" != 'v8.'* ]]; then
+    printf "\033[1;31mPlease install Node 8.x: 'nvm install 8'\033[0m\n"
+    exit 1;
+  fi
+
+  NODE_DIR=node_modules
   echo "npm components directory: $NODE_DIR"
 }
 
@@ -40,36 +45,17 @@ clean() {
 install() {
   echo 'Installing front-end dependencies…'
 
-  if [ "$cli_flag" = "development" ] ||
-     [ "$cli_flag" = "test" ]; then
-
-    # Before installing dependencies,
-    # create variables for globally-installed ones.
-    local is_installed_protractor=$(is_installed protractor)
+  if [ "$cli_flag" = "development" ]; then
 
     npm install -d --loglevel warn
 
-    # Copy globally-installed packages.
     # Protractor = JavaScript acceptance testing framework.
-    if [ $is_installed_protractor = 0 ]; then
-      echo 'Installing Protractor dependencies locally…'
-      # We skip Gecko here (--gecko false) because webdriver pulls its release
-      # directly from a GitHub.com URL which enforces rate-limiting. This can
-      # cause installation failures when running automated testing. Currently
-      # we don't rely on Gecko for testing.
-      ./$NODE_DIR/protractor/bin/webdriver-manager update --gecko false
-    else
-      echo 'Global Protractor installed. Copying global install locally…'
-      protractor_symlink=$(command -v protractor)
-      protractor_binary=$(readlink $protractor_symlink)
-      protractor_full_path=$(dirname $protractor_symlink)/$(dirname $protractor_binary)/../../protractor
-      if [ ! -d $protractor_full_path/node_modules/webdriver-manager/selenium ]; then
-        echo 'ERROR: Please run `webdriver-manager update` and try again!'
-        exit
-      fi
-      mkdir -p ./$NODE_DIR/protractor
-      cp -r $protractor_full_path ./$NODE_DIR/
-    fi
+    echo 'Installing Protractor dependencies locally…'
+    # We skip Gecko here (--gecko false) because webdriver pulls its release
+    # directly from a GitHub.com URL which enforces rate-limiting. This can
+    # cause installation failures when running automated testing. Currently
+    # we don't rely on Gecko for testing.
+    ./$NODE_DIR/protractor/bin/webdriver-manager update --gecko false
 
   else
     npm install --production --loglevel warn --no-optional
@@ -99,46 +85,21 @@ clean_and_install() {
 # Run tasks to build the project for distribution.
 build() {
   echo 'Building project…'
-  gulp clean
   gulp build
 
   if [ "$cli_flag" = "production" ]; then
+    echo 'Running additional build steps for on-demand and Nemo assets.'
     gulp scripts:ondemand
+    gulp styles:ondemand
+    gulp scripts:nemo
+    gulp styles:nemo
   fi
-}
-
-shrinkwrap() {
-  if [ -f "npm-shrinkwrap.json" ]; then
-    echo 'Removing npm-shrinkwrap.json…'
-    rm npm-shrinkwrap.json
-  fi
-  clean
-  install
-  npm prune
-  echo 'Shrinkwrapping…'
-  npm shrinkwrap
-  checksum
-}
-
-# Returns 1 if a global command-line program installed, else 0.
-# For example, echo "node: $(is_installed node)".
-is_installed() {
-  # Set to 1 initially.
-  local return_=1
-
-  # Set to 0 if program is not found.
-  type $1 >/dev/null 2>&1 || { local return_=0; }
-
-  echo "$return_"
 }
 
 # Execute requested (or all) functions.
 if [ "$1" == "init" ]; then
   init ""
   clean_and_install
-elif [ "$1" == "shrinkwrap" ]; then
-  init "production"
-  shrinkwrap
 elif [ "$1" == "build" ]; then
   build
 else

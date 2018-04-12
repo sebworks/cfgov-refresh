@@ -1,44 +1,53 @@
 ## Development tips
 
-### TIP: Updating npm shrinkwrapped dependencies
-For [security reasons](http://www.infoworld.com/article/3048526/security/nodejs-alert-google-engineer-finds-flaw-in-npm-scripts.html),
-the dependencies in [`package.json`](/package.json) are pinned to a version
-in [`npm-shrinkwrap.json`](/npm-shrinkwrap.json).
-This means updating a project dependency requires updating both files.
-The easiest way to do this is the following steps:
+### TIP: Developing on nested satellite apps
+Some projects can sit inside cfgov-refresh, but manage their own asset
+dependencies. These projects have their own package.json and base templates.
 
- 1. Update the version of the dependency in `package.json`.
- 2. Delete the `node_modules` directory.
- 3. Delete the `npm-shrinkwrap.json` file.
- 4. Run `npm install`.
- 5. Run `npm shrinkwrap --dev`.
+The structure looks like this:
 
-Congrats! The dependency has been updated.
+#### npm modules
+- App's own dependency list is in
+  `cfgov/unprocessed/apps/[project namespace]/package.json`
+- App's `node_modules` path is listed in the Travis config
+  https://github.com/cfpb/cfgov-refresh/blob/master/.travis.yml#L10
+  so that their dependencies will be available when Travis runs.
 
-### TIP: Loading sibling projects
+#### Webpack
+- Apps may include their own webpack-config.js configuration that adjusts how
+  their app-specific assets should be built. This configuration appears in
+  `cfgov/unprocessed/apps/[project namespace]/webpack-config.js`
+
+#### Templates
+- Apps use a jinja template that extends the `base.html`
+  template used by the rest of the site.
+  This template would reside in `cfgov/jinja2/v1/[project namespace]/index.html`
+  or similar (for example, [owning-a-home](https://github.com/cfpb/cfgov-refresh/blob/master/cfgov/jinja2/v1/owning-a-home/explore-rates/index.html)).
+
+!!! note
+    A template may support a non-standard browser, like an older IE version,
+    by including the required dependencies, polyfills, etc. in its
+    template's `{% block css %}` or `{% block javascript scoped %}` blocks.
+
+
+### TIP: Loading satellite apps
 Some projects fit within the cfgov-refresh architecture,
 but are not fully incorporated into the project.
-These are known as "non-v1 Django apps."
-In order to visit areas of the site locally where those projects are used,
-the sibling projects need to be installed
-and then indexed within this cfgov-refresh project.
+These are known as "satellite apps."
 
-The non-v1 apps are the following:
+Satellite apps are listed in the
+[optional-public.txt](https://github.com/cfpb/cfgov-refresh/blob/master/requirements/optional-public.txt)
+requirements file.
 
- - [Owning a Home](https://github.com/cfpb/owning-a-home).
- - fin-ed-resources (ghe/CFGOV/fin-ed-resources) - for the Education Resources section.
- - know-before-you-owe (ghe/CFGOV/know-before-you-owe) - for the Consumer Tools > Know before you owe section.
+In addition to the aforementioned list,
+[HMDA Explorer](https://github.com/cfpb/hmda-explorer) and
+[Rural or Underserved](https://github.com/cfpb/rural-or-underserved-test),
+have their own installation requirements.
 
-After installing these projects as sibling directories to the `cfgov-refresh` repository,
+If using Docker, follow
+[these guidelines](https://github.com/cfpb/cfgov-refresh/blob/master/docs/usage.md#develop-satellite-apps).
 
-##### Option 1: Sheer Index and Elasticsearch (e.g. owning-a-home)
-
-1. build the third-party projects per their directions,
-1. stop the web server and return to `cfgov-refresh`
-1. and run `cfgov/manage.py sheer_index -r` to load the projects' data into ElasticSearch.
-
-
-##### Option 2: Direct dependencies
+Otherwise, if not using Docker, follow these guidelines:
 
 1. Build the third-party projects per their directions
 1. Stop the web server and return to `cfgov-refresh`
@@ -68,7 +77,7 @@ Required option:
 - `--parent` is the slug of the parent page that the pages will exist
   under.
 - `--snippet` is a flag that's used to signify that the importing data will be
-  inserted into a Django model, registered as a [Wagtail snippet](http://docs.wagtail.io/en/v1.1/topics/snippets.html).
+  inserted into a Django model, registered as a [Wagtail snippet](http://docs.wagtail.io/en/v2.0.1/topics/snippets.html).
   One of these options must be set for the command to run.
 
 Other options:
@@ -140,36 +149,6 @@ There are two ways in which we use indexed content:
 repeating items (e.g., blog posts and press releases),
 and single pages (e.g., the Future Requests page in Doing Business with Us).
 What follows is a deeper dive into both of these content types.
-
-#### Repeating content
-
-For any kind of repeating content, this is the basic process:
-
-1. In the vars file for the section you're in (e.g., `newsroom/_vars-newsroom.html`),
-   we set up a variable that holds the results of the default query we want to run.
-
-   Here's how it looks for the blog:
-
-```jinja
-{% set query = queries.posts %}
-{% set posts = query.search(size=10) %}
-```
-
-
-2. If you want to display the repeating content within a template,
-   simply set up a `for ... in` loop,
-   then output the different properties of the post within.
-   In the case of the blog, a list of posts is built using this method in
-   `cfgov/jinja2/v1/_includes/posts-paginated.html`.
-
-   Here is a simplified example:
-
-```jinja
-{% for post in posts %}
-  <h1>{{ post.title }}</h1>
-  {{ post.content }}
-{% endfor %}
-```
 
 #### Single content
 
@@ -277,11 +256,11 @@ may have an impact on local server performance.
 
 ### TIP: Updating the documentation
 
-Our documentation is written as Markdown files and served in GitHub pages 
-by [mkdocs](http://www.mkdocs.org/user-guide/deploying-your-docs/).
+Our documentation is written as Markdown files and served in GitHub pages
+by [mkdocs](https://www.mkdocs.org/user-guide/deploying-your-docs/).
 
-To update the docs in GitHub Pages once a pull request has been merged, 
-mkdocs provides [a helpful command](http://www.mkdocs.org/user-guide/deploying-your-docs/):
+To update the docs in GitHub Pages once a pull request has been merged,
+mkdocs provides [a helpful command](https://www.mkdocs.org/user-guide/deploying-your-docs/):
 
 ```
 mkdocs gh-deploy --clean

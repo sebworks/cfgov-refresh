@@ -5,6 +5,7 @@ import time
 
 import requests
 
+
 logger = logging.getLogger('http_smoke_tests')
 logger.setLevel(logging.FATAL)
 shell_log = logging.StreamHandler()
@@ -25,11 +26,16 @@ parser.add_argument(
 parser.add_argument(
     "-v", "--verbose",
     action="store_true",
-    help="set logging level to info to see all message output."
+    help="Set logging level to info to see all message output."
+)
+parser.add_argument(
+    "-t", "--timeout",
+    type=str,
+    help="Set a timeout level, in seconds; the default is 30."
 )
 
+TIMEOUT = 30
 FULL = False
-TIMEOUT = 10
 BASE = 'https://www.consumerfinance.gov'
 
 FULL_RUN = [
@@ -39,8 +45,7 @@ FULL_RUN = [
      '?selected_facets=category_exact:enviar-dinero'),
     '/learnmore/',
     '/complaint/',
-    '/askcfpb/',
-    '/askcfpb/search',
+    '/ask-cfpb/',
     '/your-story/',
     '/students/',
     '/find-a-housing-counselor/',
@@ -59,14 +64,14 @@ FULL_RUN = [
     '/mortgagehelp/',
     '/fair-lending/',
     '/sending-money/',
-    '/educational-resources/your-money-your-goals/',
+    '/practitioner-resources/your-money-your-goals/',
     '/adult-financial-education/',
-    '/educational-resources/youth-financial-education/',
-    '/educational-resources/library-resources/',
-    '/educational-resources/resources-for-tax-preparers/',
-    '/educational-resources/money-as-you-grow/',
+    '/practitioner-resources/youth-financial-education/',
+    '/practitioner-resources/library-resources/',
+    '/practitioner-resources/resources-for-tax-preparers/',
+    '/consumer-tools/money-as-you-grow/',
     '/empowerment/',
-    '/educational-resources/resources-for-older-adults/',
+    '/practitioner-resources/resources-for-older-adults/',
     '/data-research/',
     '/data-research/research-reports/',
     '/data-research/cfpb-research-conference/',
@@ -106,8 +111,7 @@ SHORT_RUN = [
     #  '?selected_facets=category_exact:enviar-dinero'),'/complaint/',
     '/learnmore/',
     # '/complaint/'
-    # '/askcfpb/',
-    '/askcfpb/search',
+    '/ask-cfpb/',
     '/your-story/',
     '/students/',
     '/find-a-housing-counselor/',
@@ -129,11 +133,11 @@ SHORT_RUN = [
     # '/educational-resources/your-money-your-goals/',
     '/adult-financial-education/',
     # '/educational-resources/youth-financial-education/',
-    '/educational-resources/library-resources/',
+    '/practitioner-resources/library-resources/',
     # '/educational-resources/tax-preparer-resources/',
-    '/educational-resources/money-as-you-grow/',
+    '/consumer-tools/money-as-you-grow/',
     # '/empowerment/',
-    '/educational-resources/resources-for-older-adults/',
+    '/practitioner-resources/resources-for-older-adults/',
     # '/data-research/',
     # '/data-research/research-reports/',
     # '/data-research/cfpb-research-conference/',
@@ -239,5 +243,7 @@ if __name__ == '__main__':
         BASE = args.base
     if args.full:
         FULL = True
+    if args.timeout:
+        TIMEOUT = int(args.timeout)
     if not check_urls(BASE, full=FULL):
         sys.exit(1)

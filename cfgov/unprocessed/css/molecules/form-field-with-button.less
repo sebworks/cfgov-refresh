@@ -10,11 +10,11 @@
                     <b>label text</b>(required)
                 </label>
                 <input id="" type="" name="" placeholder=""
-                class="m-form-field-with-button_field">
+                class="m-form-field-with-button_field a-text-input">
             </div>
             <p class="short-desc">
             </p>
-            <input class="btn btn__full" type="" value="">
+            <input class="a-btn a-btn__full-on-xs" type="" value="">
         </div>
       codenotes:
         - |
@@ -24,33 +24,17 @@
             .form-group
               label
                 b
-              .m-form-field-with-button_field
+              .m-form-field-with-button_field.a-text-input
             .short-desc
             .btn btn__full
   tags:
     - cfgov-molecules
 */
-
-@margin__em: unit( @grid_gutter-width / @base-font-size-px, em );
-
+// TODO: Look into merging email-signup and form-field-with-button styles
+// Form field with button isn't used anywhere else
 .m-form-field-with-button {
-    input[type="text"],
-    input[type="search"],
-    input[type="email"],
-    input[type="url"],
-    input[type="tel"],
-    input[type="number"] {
-        width: 100%;
-        box-sizing: border-box;
-        margin-bottom: @margin__em;
-    }
-
-    label {
-        margin-bottom: @margin__em / 2;
-    }
-
-    .short-desc {
-        margin-bottom: @margin__em / 2;
+    .m-form-field {
+        margin-bottom: unit( @grid_gutter-width / @base-font-size-px, em );
     }
 }
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # ==========================================================================
 # Import data from a dump. Provide the filename as the first arg.
@@ -23,7 +23,7 @@ refresh_data(){
 	echo 'Creating db'
 	./create-mysql-db.sh
 	echo 'Importing refresh db'
-	mysql v1 --user='root' --password='' < $refresh_dump_name
+	mysql v1 --user='root' --password="$MYSQL_ROOT_PW" < $refresh_dump_name
 	echo 'Setting up initial data'
 	./cfgov/manage.py runscript initial_data
 }
@@ -42,7 +42,7 @@ if [[ -z "$refresh_dump_name" ]]; then
 
 Or you can define the location of a dump and this script will download it for you:
 
-	export CFGOV_PROD_DB_LOCATION=http://some-bucket.s3.amazonaws.com/wherever/production_django.sql.gz
+	export CFGOV_PROD_DB_LOCATION=https://example.com/wherever/production_django.sql.gz
 	./refresh-data.sh
 	'
 else

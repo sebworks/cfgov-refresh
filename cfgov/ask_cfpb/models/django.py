@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-from collections import OrderedDict
-import HTMLParser
 import json
+from collections import Counter, OrderedDict
+from six.moves import html_parser as HTMLParser
 
 from django import forms
 from django.apps import apps
@@ -13,15 +13,17 @@ from django.db import models
 from django.template.defaultfilters import slugify
 from django.utils import html
 from django.utils.functional import cached_property
+
 from wagtail.wagtailadmin.edit_handlers import (
-    FieldPanel,
-    MultiFieldPanel,
-    FieldRowPanel)
+    FieldPanel, FieldRowPanel, MultiFieldPanel
+)
 from wagtail.wagtailcore.blocks.stream_block import StreamValue
 from wagtail.wagtailcore.fields import RichTextField
 from wagtail.wagtailcore.models import Page
+from wagtail.wagtailimages.edit_handlers import ImageChooserPanel
 
 from v1.util.migrations import get_or_create_page
+
 
 html_parser = HTMLParser.HTMLParser()
 
@@ -53,6 +55,18 @@ def get_feedback_stream_value(page):
     return stream_value
 
 
+def generate_short_slug(slug_string):
+    """Limits a slug to around 100 characters, using full words"""
+    if len(slug_string) < 100:
+        return slugify(slug_string)
+    slug_100 = slugify(slug_string)[:100]
+    if slug_100.endswith('-'):
+        slug_base = slug_100.rstrip('-')
+    else:
+        slug_base = "-".join(slug_100.split('-')[:-1])
+    return slug_base
+
+
 class Audience(models.Model):
     name = models.CharField(max_length=255)
 
@@ -82,10 +96,29 @@ class NextStep(models.Model):
 class Category(models.Model):
     name = models.CharField(max_length=255)
     name_es = models.CharField(max_length=255)
-    slug = models.SlugField()
-    slug_es = models.SlugField()
-    intro = RichTextField(blank=True)
-    intro_es = RichTextField(blank=True)
+    slug = models.SlugField(help_text="Do not edit this field")
+    slug_es = models.SlugField(help_text="Do not edit this field")
+    intro = RichTextField(
+        blank=True,
+        help_text=(
+            "Do not use H2, H3, H4, or H5 to style this text. "
+            "Do not add links, images, videos or other rich text elements."))
+    intro_es = RichTextField(
+        blank=True,
+        help_text=(
+            "Do not use this field. "
+            "It is not currently displayed on the front end."))
+    category_image = models.ForeignKey(
+        'v1.CFGOVImage',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        help_text=(
+            'Select a custom image to appear when visitors share pages '
+            'belonging to this category on social media.'
+        )
+    )
     panels = [
         FieldPanel('name', classname="title"),
         FieldPanel('slug'),
@@ -93,6 +126,7 @@ class Category(models.Model):
         FieldPanel('name_es', classname="title"),
         FieldPanel('slug_es'),
         FieldPanel('intro_es'),
+        ImageChooserPanel('category_image')
     ]
 
     def __str__(self):
@@ -103,9 +137,23 @@ class Category(models.Model):
             category=self,
             featured=True).order_by('featured_rank')
 
+    @property
+    def top_tags_es(self):
+        import collections
+        valid_dict = Answer.valid_tags(language='es')
+        cleaned = []
+        for a in self.answer_set.all():
+            cleaned += a.tags_es
+        valid_clean = [tag for tag in cleaned
+                       if tag in valid_dict['valid_tags']]
+        counter = collections.Counter(valid_clean)
+        return counter.most_common()[:10]
+
     @cached_property
     def facet_map(self):
-        answers = self.answer_set.order_by('-pk').select_related()
+        raw_answers = self.answer_set.order_by('-pk').select_related()
+        answers = [
+            answer for answer in raw_answers if answer.english_page.live]
         subcats = self.subcategories.all().select_related()
         audiences = Audience.objects.all()
         container = {
@@ -116,14 +164,15 @@ class Category(models.Model):
             (str(answer.pk),
              {'question': answer.question,
               'url': '/ask-cfpb/slug-en-{}'.format(answer.pk)}
-             ) for answer in answers if answer.english_page])
+             ) for answer in answers
+            if answer.answer_pages.filter(language='en', redirect_to=None)])
         subcat_data = {}
         for subcat in subcats:
             key = str(subcat.id)
             subcat_data[key] = [
                 str(answer.pk) for answer
                 in subcat.answer_set.all()
-                if answer.english_page]
+                if answer.answer_pages.filter(language='en', redirect_to=None)]
         container['subcategories'].update(subcat_data)
         audience_map = {audience: {'all': [], 'name': audience.name}
                         for audience in audiences}
@@ -150,22 +199,93 @@ class Category(models.Model):
         verbose_name_plural = 'Categories'
 
 
+class SubCategory(models.Model):
+    name = models.CharField(max_length=255)
+    name_es = models.CharField(max_length=255, null=True, blank=True)
+    slug = models.SlugField()
+    slug_es = models.SlugField(
+        null=True,
+        blank=True,
+        help_text="This field is not currently used on the front end.")
+    weight = models.IntegerField(default=1)
+    description = RichTextField(
+        blank=True,
+        help_text="This field is not currently displayed on the front end.")
+    description_es = RichTextField(
+        blank=True,
+        help_text="This field is not currently displayed on the front end.")
+    more_info = models.TextField(
+        blank=True,
+        help_text="This field is not currently displayed on the front end.")
+    parent = models.ForeignKey(
+        Category,
+        null=True,
+        blank=True,
+        default=None,
+        related_name='subcategories')
+    related_subcategories = models.ManyToManyField(
+        'self',
+        blank=True,
+        default=None,
+        help_text="Maximum 3 related subcategories"
+    )
+
+    panels = [
+        FieldPanel('name', classname="title"),
+        FieldPanel('slug'),
+        FieldPanel('description'),
+        FieldPanel('name_es', classname="title"),
+        FieldPanel('slug_es'),
+        FieldPanel('description_es'),
+        FieldPanel('weight'),
+        FieldPanel('more_info'),
+        FieldPanel('parent'),
+        FieldPanel('related_subcategories',
+                   widget=forms.CheckboxSelectMultiple),
+    ]
+
+    def __str__(self):
+        return "{}: {}".format(self.parent.name, self.name)
+
+    class Meta:
+        ordering = ['weight']
+        verbose_name_plural = "subcategories"
+
+
 class Answer(models.Model):
     last_user = models.ForeignKey(User, blank=True, null=True)
     category = models.ManyToManyField(
         'Category',
         blank=True,
-        help_text="This associates an answer with a portal page")
+        help_text=(
+            "Categorize this answer. "
+            "Avoid putting into more than one category."))
     question = models.TextField(blank=True)
     statement = models.TextField(
         blank=True,
-        help_text="Text to be used on portal pages to refer to this answer")
-    snippet = RichTextField(blank=True, help_text="Optional answer intro")
-    answer = RichTextField(blank=True)
+        help_text=(
+            "(Optional) Use this field to rephrase the question title as "
+            "a statement. Use only if this answer has been chosen to appear "
+            "on a money topic portal (e.g. /consumer-tools/debt-collection)."))
+    snippet = RichTextField(
+        blank=True,
+        help_text=(
+            "Optional answer intro, 180-200 characters max. "
+            "Avoid adding links, images, videos or other rich text elements."))
+    answer = RichTextField(
+        blank=True,
+        help_text=(
+            "Do not use H2 or H3 to style text. Only use the HTML Editor "
+            "for troubleshooting. To style tips, warnings and notes, "
+            "select the content that will go inside the rule lines "
+            "(so, title + paragraph) and click the Pencil button "
+            "to style it. Click again to unstyle the tip."))
     slug = models.SlugField(max_length=255, blank=True)
     featured = models.BooleanField(
         default=False,
-        help_text="Makes the answer available to cards on the landing page")
+        help_text=(
+            "Check to make this one of two featured answers "
+            "on the landing page."))
     featured_rank = models.IntegerField(blank=True, null=True)
 
     question_es = models.TextField(
@@ -173,11 +293,17 @@ class Answer(models.Model):
         verbose_name="Spanish question")
     snippet_es = RichTextField(
         blank=True,
-        help_text="Optional Spanish answer intro",
+        help_text=(
+            "Do not use this field. "
+            "It is not currently displayed on the front end."),
         verbose_name="Spanish snippet")
     answer_es = RichTextField(
         blank=True,
-        verbose_name="Spanish answer")
+        verbose_name="Spanish answer",
+        help_text=(
+            "Do not use H2 or H3 to style text. Only use the HTML Editor "
+            "for troubleshooting. Also note that tips styling "
+            "(the Pencil button) does not display on the front end."))
     slug_es = models.SlugField(
         max_length=255,
         blank=True,
@@ -192,10 +318,16 @@ class Answer(models.Model):
         help_text="Spanish search words or phrases, separated by commas")
     update_english_page = models.BooleanField(
         default=False,
-        verbose_name="Send to English page for review")
+        verbose_name="Send to English page for review",
+        help_text=(
+            "Check this box to push your English edits "
+            "to the page for review. This does not publish your edits."))
     update_spanish_page = models.BooleanField(
         default=False,
-        verbose_name="Send to Spanish page for review")
+        verbose_name="Send to Spanish page for review",
+        help_text=(
+            "Check this box to push your Spanish edits "
+            "to the page for review. This does not publish your edits."))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_edited = models.DateField(
@@ -210,25 +342,43 @@ class Answer(models.Model):
         help_text="Change the date to today "
                   "if you edit a Spanish question, snippet or answer.",
         verbose_name="Last edited Spanish content")
+
     subcategory = models.ManyToManyField(
         'SubCategory',
         blank=True,
-        help_text="Choose any subcategories related to the answer")
+        help_text=(
+            "Choose only subcategories that belong "
+            "to one of the categories checked above."))
     audiences = models.ManyToManyField(
         'Audience',
         blank=True,
-        help_text="Pick any audiences that may be interested in the answer")
+        help_text="Tag any audiences that may be interested in the answer.")
     next_step = models.ForeignKey(
         NextStep,
         blank=True,
         null=True,
-        help_text="Also called action items or upsell items")
+        help_text=(
+            "Formerly known as action items or upsell items."
+            "On the web page, these are labeled as "
+            "'Explore related resources.'"))
     related_questions = models.ManyToManyField(
         'self',
         symmetrical=False,
         blank=True,
         related_name='related_question',
         help_text='Maximum of 3')
+    social_sharing_image = models.ForeignKey(
+        'v1.CFGOVImage',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        help_text=(
+            'Optionally select a custom image to appear when users share this '
+            'page on social media websites. If no image is selected, this '
+            'page\'s category image will be used. Minimum size: 1200w x 630h.'
+        )
+    )
 
     panels = [
         MultiFieldPanel([
@@ -259,14 +409,18 @@ class Answer(models.Model):
                 FieldPanel('featured_rank')]),
             FieldPanel('audiences', widget=forms.CheckboxSelectMultiple),
             FieldPanel('next_step'),
-            FieldRowPanel([
-                FieldPanel(
-                    'category', widget=forms.CheckboxSelectMultiple),
-                FieldPanel(
-                    'subcategory',
-                    widget=forms.CheckboxSelectMultiple)]),
-            FieldPanel('related_questions', widget=forms.SelectMultiple),
-            FieldPanel('search_tags')],
+            FieldPanel(
+                'category', widget=forms.CheckboxSelectMultiple),
+            FieldPanel(
+                'subcategory',
+                widget=forms.CheckboxSelectMultiple),
+            FieldPanel(
+                'related_questions',
+                widget=forms.SelectMultiple,
+                classname="full"),
+            FieldPanel('search_tags'),
+            FieldPanel('search_tags_es'),
+            ImageChooserPanel('social_sharing_image')],
             heading="Metadata",
             classname="collapsible"),
     ]
@@ -276,6 +430,10 @@ class Answer(models.Model):
 
     def __str__(self):
         return "{} {}".format(self.id, self.slug)
+
+    @property
+    def available_subcategory_qs(self):
+        return SubCategory.objects.filter(parent__in=self.category.all())
 
     @property
     def english_page(self):
@@ -300,10 +458,6 @@ class Answer(models.Model):
             html_parser.unescape(self.snippet_es),
             html_parser.unescape(self.answer_es)))
         return html.strip_tags(unescaped).strip()
-
-    @property
-    def available_subcategory_qs(self):
-        return SubCategory.objects.filter(parent__in=self.category.all())
 
     def cleaned_questions(self):
         cleaned_terms = html_parser.unescape(self.question)
@@ -344,25 +498,39 @@ class Answer(models.Model):
         return self.clean_tag_list(self.search_tags_es)
 
     @classmethod
-    def valid_spanish_tags(cls):
+    def valid_tags(cls, language='en'):
         """
         Search tags are arbitrary and messy. This function serves 2 purposes:
         - Assemble a whitelist of tags that are safe for search.
         - Exclude tags that are attached to only one answer.
         Tags are useless until they can be used to collect at least 2 answers.
+
+        This method returns a dict {'valid_tags': [], tag_map: {}}
+        valid_tags is an alphabetical list of valid tags.
+        tag_map is a dictionary mapping tags to questions.
         """
         cleaned = []
-        valid = []
-        for a in cls.objects.all():
-            if a.search_tags_es.strip():
-                cleaned += [
-                    tag.strip() for tag
-                    in a.search_tags_es.strip().split(',')
-                    if tag.strip()]
-        for tag in sorted(set(cleaned)):
-            if cls.objects.filter(search_tags_es__contains=tag).count() > 1:
-                valid.append(tag)
-        return valid
+        tag_map = {}
+        if language == 'es':
+            for a in cls.objects.all():
+                cleaned += a.tags_es
+                for tag in a.tags_es:
+                    if tag not in tag_map:
+                        tag_map[tag] = [a]
+                    else:
+                        tag_map[tag].append(a)
+        else:
+            for a in cls.objects.all():
+                cleaned += a.tags
+                for tag in a.tags:
+                    if tag not in tag_map:
+                        tag_map[tag] = [a]
+                    else:
+                        tag_map[tag].append(a)
+        tag_counter = Counter(cleaned)
+        valid = sorted(
+            tup[0] for tup in tag_counter.most_common() if tup[1] > 1)
+        return {'valid_tags': valid, 'tag_map': tag_map}
 
     def has_live_page(self):
         if not self.answer_pages.all():
@@ -420,10 +588,7 @@ class Answer(models.Model):
             get_feedback_stream_value(_page),
             is_lazy=True)
         _page.save_revision(user=self.last_user)
-        base_page.refresh_from_db()
-        base_page.has_unpublished_changes = True
-        base_page.save()
-        return base_page
+        return _page
 
     def create_or_update_pages(self):
         counter = 0
@@ -436,30 +601,30 @@ class Answer(models.Model):
         return counter
 
     def save(self, skip_page_update=False, *args, **kwargs):
-        if self.answer:
-            self.slug = "{}-en-{}".format(
-                slugify(self.question[:244]), self.id)
+        if not self.id:
+            super(Answer, self).save(*args, **kwargs)
+            self.save(skip_page_update=skip_page_update)
         else:
-            self.slug = "slug-en-{}".format(self.id)
-        if self.answer_es:
-            self.slug_es = "{}-es-{}".format(
-                slugify(self.question_es[:244]), self.id)
-        super(Answer, self).save(*args, **kwargs)
-        if skip_page_update is False:
-            if self.update_english_page:
-                self.create_or_update_page(language='en')
-            if self.update_spanish_page:
-                self.create_or_update_page(language='es')
+            if self.answer:
+                self.slug = "{}-en-{}".format(
+                    generate_short_slug(self.question), self.id)
+            else:
+                self.slug = "slug-en-{}".format(self.id)
+            if self.answer_es:
+                self.slug_es = "{}-es-{}".format(
+                    generate_short_slug(self.question_es), self.id)
+            else:
+                self.slug_es = "slug-es-{}".format(self.id)
+            super(Answer, self).save(*args, **kwargs)
+            if skip_page_update is False:
+                if self.update_english_page:
+                    self.create_or_update_page(language='en')
+                if self.update_spanish_page:
+                    self.create_or_update_page(language='es')
 
     def delete(self):
         self.answer_pages.all().delete()
         super(Answer, self).delete()
-
-
-class AnswerTagProxy(Answer):
-    """A no-op proxy class to allow index store of expensive queries"""
-    class Meta:
-        proxy = True
 
 
 class EnglishAnswerProxy(Answer):
@@ -472,47 +637,3 @@ class SpanishAnswerProxy(Answer):
     """A no-op proxy class to allow separate language indexing in Haystack"""
     class Meta:
         proxy = True
-
-
-class SubCategory(models.Model):
-    name = models.CharField(max_length=255)
-    name_es = models.CharField(max_length=255, null=True, blank=True)
-    slug = models.SlugField()
-    slug_es = models.SlugField(null=True, blank=True)
-    weight = models.IntegerField(default=1)
-    description = RichTextField(blank=True)
-    description_es = RichTextField(blank=True)
-    more_info = models.TextField(blank=True)
-    parent = models.ForeignKey(
-        Category,
-        null=True,
-        blank=True,
-        default=None,
-        related_name='subcategories')
-    related_subcategories = models.ManyToManyField(
-        'self',
-        blank=True,
-        default=None,
-    )
-
-    panels = [
-        FieldPanel('name', classname="title"),
-        FieldPanel('slug'),
-        FieldPanel('description'),
-        FieldPanel('name_es', classname="title"),
-        FieldPanel('slug_es'),
-        FieldPanel('description_es'),
-        FieldPanel('featured'),
-        FieldPanel('weight'),
-        FieldPanel('more_info'),
-        FieldPanel('parent'),
-        FieldPanel('related_subcategories',
-                   widget=forms.CheckboxSelectMultiple),
-    ]
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        ordering = ['weight']
-        verbose_name_plural = "Subcategories"

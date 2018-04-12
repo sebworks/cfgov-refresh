@@ -1,9 +1,9 @@
 from wagtail.wagtailcore import blocks
 from wagtail.wagtailimages.blocks import ImageChooserBlock
 
-from . import atoms
-from ..blocks import AnchorLink
-from ..util import ref
+from v1.atomic_elements import atoms
+from v1.blocks import AnchorLink, HeadingBlock
+from v1.util import ref
 
 
 class HalfWidthLinkBlob(blocks.StructBlock):
@@ -24,6 +24,24 @@ class HalfWidthLinkBlob(blocks.StructBlock):
     class Meta:
         icon = 'link'
         template = '_includes/molecules/link-blob.html'
+
+
+class InfoUnit(blocks.StructBlock):
+    image = atoms.ImageBasic(
+        required=False,
+    )
+
+    heading = HeadingBlock(
+        required=False,
+        default={'level': 'h3'}
+    )
+
+    body = blocks.RichTextBlock(blank=True, required=False)
+    links = blocks.ListBlock(atoms.Hyperlink(), required=False)
+
+    class Meta:
+        icon = 'image'
+        template = '_includes/molecules/info-unit.html'
 
 
 class ImageText5050(blocks.StructBlock):
@@ -57,7 +75,12 @@ class TextIntroduction(blocks.StructBlock):
     intro = blocks.RichTextBlock(required=False)
     body = blocks.RichTextBlock(required=False)
     links = blocks.ListBlock(atoms.Hyperlink(required=False), required=False)
-    has_rule = blocks.BooleanBlock(required=False)
+    has_rule = blocks.BooleanBlock(
+        required=False,
+        label="Has bottom rule",
+        help_text=('Check this to add a horizontal rule line to bottom of '
+                   'text introduction.')
+    )
 
     class Meta:
         icon = 'title'
@@ -195,6 +218,9 @@ class FeaturedContent(blocks.StructBlock):
         label = 'Featured Content'
         classname = 'block__flush'
 
+    class Media:
+        js = ['video-player.js']
+
 
 class CallToAction(blocks.StructBlock):
     slug_text = blocks.CharBlock(required=False)
@@ -236,8 +262,22 @@ class ContactPhone(blocks.StructBlock):
     phones = blocks.ListBlock(
         blocks.StructBlock([
             ('number', blocks.CharBlock(max_length=15)),
-            ('vanity', blocks.CharBlock(max_length=15, required=False)),
-            ('tty', blocks.CharBlock(max_length=15, required=False)),
+            ('extension', blocks.CharBlock(max_length=4, required=False)),
+            ('vanity', blocks.CharBlock(
+                max_length=15,
+                required=False,
+                help_text='A phoneword version of the above number'
+            )),
+            ('tty', blocks.CharBlock(
+                max_length=15,
+                required=False,
+                label="TTY"
+            )),
+            ('tty_ext', blocks.CharBlock(
+                max_length=4,
+                required=False,
+                label="TTY Extension"
+            )),
         ]))
 
     class Meta:
@@ -282,7 +322,8 @@ class RelatedLinks(blocks.StructBlock):
 
 class Quote(blocks.StructBlock):
     body = blocks.TextBlock()
-    citation = blocks.TextBlock()
+    citation = blocks.TextBlock(required=False)
+    is_large = blocks.BooleanBlock(required=False)
 
     class Meta:
         icon = 'openquote'
@@ -302,14 +343,14 @@ class RelatedMetadata(blocks.StructBlock):
         ], icon='list-ul')),
         ('date', blocks.StructBlock([
             ('heading', blocks.CharBlock(max_length=100)),
-            ('date', blocks.DateBlock(required=False))
+            ('date', blocks.DateBlock())
         ], icon='date')),
         ('topics', blocks.StructBlock([
             ('heading', blocks.CharBlock(max_length=100, default='Topics')),
             ('show_topics', blocks.BooleanBlock(default=True, required=False))
         ], icon='tag')),
     ])
-    half_width = blocks.BooleanBlock(required=False, default=False)
+    is_half_width = blocks.BooleanBlock(required=False, default=False)
 
     class Meta:
         icon = 'grip'

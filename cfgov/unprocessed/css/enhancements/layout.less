@@ -5,42 +5,6 @@
 }
 
 /* topdoc
-  name: Block
-  family: cf-layout
-    - name: Padded-left modifier
-      markup: |
-        Main content...
-        <div class="block block__padded-left block__border-left">
-            Content block with left margin, padding, and border.
-        </div>
-      codenotes:
-        - .block.block__padded-left
-    - name: Padded-right modifier
-      markup: |
-        <div class="block block__padded-right block__border-right">
-            Content block with right margin, padding, and border.
-        </div>
-        Content...
-      codenotes:
-        - .block.block__padded-right
-  tags:
-    - cf-layout
-*/
-.respond-to-min(@bp-med-min, {
-    .block {
-        &__padded-left {
-            padding-left: unit(@grid_gutter-width / @base-font-size-px, em);
-            margin-left: unit(@grid_gutter-width / @base-font-size-px, em);
-        }
-
-        &__padded-right {
-            padding-right: unit(@grid_gutter-width / @base-font-size-px, em);
-            margin-right: unit(@grid_gutter-width / @base-font-size-px, em);
-        }
-    }
-});
-
-/* topdoc
   name: Half top padding
   family: cf-layout
   patterns:
@@ -170,20 +134,6 @@
     - cf-layout
 */
 
-.content_main,
-.content_intro {
-    dd,
-    dt,
-    h3,
-    h4,
-    h5,
-    h6,
-    li,
-    p {
-        max-width: 41.875rem;
-    }
-}
-
 .content__2-1 .content_main .o-email-signup {
     width: 100%;
     max-width: 41.875rem;
@@ -302,7 +252,7 @@
           -----------------------
           .content_banner
             .wrapper
-            
+
   tags:
     - cf-layout
 */
@@ -314,7 +264,7 @@
     background-color: @banner_bg;
 
     .wrapper {
-        padding: unit( @grid_gutter-width / @base-font-size-px, em ) 
+        padding: unit( @grid_gutter-width / @base-font-size-px, em )
                  unit( (@grid_gutter-width / 2) / @base-font-size-px, em );
 
         .respond-to-range(@bp-sm-min, @bp-lg-max {
@@ -343,7 +293,7 @@
 // TODO: Explore setting this padding value as a base style
 // on lists instead of using a modifier
 
- .list__flush-left {
+ .m-list__flush-left {
      padding-left: unit( 18px / @base-font-size-px, em );
  }
 

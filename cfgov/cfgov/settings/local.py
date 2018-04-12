@@ -1,4 +1,8 @@
+from unipath import DIRS
+
 from .base import *
+from .database_mixin import *
+
 
 DEBUG = True
 SECRET_KEY = 'not-secret-key-for-testing'
@@ -7,44 +11,8 @@ INSTALLED_APPS += (
     'wagtail.contrib.wagtailstyleguide',
 )
 
-if not COLLECTSTATIC:
-    if os.environ.get('DATABASE_ROUTING', False):
-        DATABASE_ROUTERS = ['v1.db_router.CFGOVRouter', 'v1.db_router.LegacyRouter']
-
-        DATABASES = {
-            'default': {
-                'ENGINE': MYSQL_ENGINE,
-                'NAME': os.environ.get('MYSQL_NAME', ''),
-                'USER': os.environ.get('MYSQL_USER', ''),
-                'PASSWORD': os.environ.get('MYSQL_PW', ''),
-                'HOST': os.environ.get('MYSQL_HOST', ''),
-                'PORT': os.environ.get('MYSQL_PORT', ''),
-                'OPTIONS': {'init_command': os.environ.get('STORAGE_ENGINE', 'SET storage_engine=MYISAM') },
-            },
-            'legacy': {
-                'ENGINE': MYSQL_ENGINE,
-                'NAME': os.environ.get('LEGACY_MYSQL_NAME', ''),
-                'USER': os.environ.get('LEGACY_MYSQL_USER', ''),
-                'PASSWORD': os.environ.get('LEGACY_MYSQL_PW', ''),
-                'HOST': os.environ.get('LEGACY_MYSQL_HOST', ''),
-                'PORT': os.environ.get('LEGACY_MYSQL_PORT', ''),
-                'OPTIONS': {'init_command': os.environ.get('STORAGE_ENGINE', 'SET storage_engine=MYISAM') },
-            },
-        }
-    else:
-        DATABASES = {
-            'default': {
-                'ENGINE': MYSQL_ENGINE,
-                'NAME': os.environ.get('MYSQL_NAME', ''),
-                'USER': os.environ.get('MYSQL_USER', ''),
-                'PASSWORD': os.environ.get('MYSQL_PW', ''),
-                'HOST': os.environ.get('MYSQL_HOST', ''),
-                'PORT': os.environ.get('MYSQL_PORT', ''),
-                'OPTIONS': {'init_command': os.environ.get('STORAGE_ENGINE', 'SET storage_engine=MYISAM') },
-                },
-            }
-
 STATIC_ROOT = REPOSITORY_ROOT.child('collectstatic')
+STATICFILES_DIRS += [str(d) for d in REPOSITORY_ROOT.child('static.in').listdir(filter=DIRS)]
 
 ALLOW_ADMIN_URL = DEBUG or os.environ.get('ALLOW_ADMIN_URL', False)
 
@@ -80,4 +48,23 @@ if os.environ.get('ENABLE_DEBUG_TOOLBAR'):
 
 
 MIDDLEWARE_CLASSES += CSP_MIDDLEWARE_CLASSES
-CSP_REPORT_ONLY = True
+
+# Disable caching when working locally.
+CACHES = {
+    k: {
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        'TIMEOUT': 0,
+    } for k in ('default', 'eregs_longterm_cache', 'api_cache', 'post_preview')
+}
+
+# Optionally enable cache for post_preview
+if os.environ.get('ENABLE_POST_PREVIEW_CACHE'):
+    CACHES['post_preview'] = {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'post_preview_cache',
+        'TIMEOUT': None,
+    }
+
+# Use a mock GovDelivery API instead of the real thing.
+# Remove this line to use the real API instead.
+GOVDELIVERY_API = 'core.govdelivery.LoggingMockGovDelivery'

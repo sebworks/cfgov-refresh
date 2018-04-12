@@ -1,27 +1,35 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import datetime
+import logging
 import re
 import sys
 import time
-import logging
+from six import text_type as unicode
 
-from bs4 import BeautifulSoup as bs
 from django.apps import apps
 from django.core.management import call_command
-from wagtail.wagtailcore.blocks.stream_block import StreamValue
 from django.template.defaultfilters import slugify
 
-from knowledgebase.models import QuestionCategory as QC
-from knowledgebase.models import Question, Audience, UpsellItem, EnglishAnswer
+from wagtail.wagtailcore.blocks.stream_block import StreamValue
+
+import pytz
+from bs4 import BeautifulSoup as bs
+from knowledgebase.models import (
+    Audience, EnglishAnswer, Question, QuestionCategory as QC, UpsellItem
+)
+
 from ask_cfpb.models import (
-    Answer,
-    Category,
-    NextStep,
-    SubCategory)
-from ask_cfpb.models import Audience as ASK_audience
+    Answer, Audience as ASK_audience, Category, NextStep, SubCategory
+)
 from v1.util.migrations import get_or_create_page
 
+
+TZ = pytz.timezone('US/Eastern')
+
+# Go live is 11 a.m. Wednesday, June 14, 2017
+GO_LIVE_AT = datetime.datetime(2017, 6, 14, 11, 0, tzinfo=TZ)
 
 logging.basicConfig(level=logging.WARNING)
 logging.disable(logging.INFO)
@@ -144,6 +152,18 @@ def fix_tips(answer_text):
     return clean2
 
 
+# PAGE CREATION
+
+def prep_page(page, go_live_date=False):
+    """Set the go-live date, create a revision, save page, publish revision"""
+    page.has_unpublished_changes = True
+    if go_live_date:
+        page.go_live_at = GO_LIVE_AT
+    revision = page.save_revision()
+    page.save()
+    revision.publish()
+
+
 def get_or_create_landing_pages():
     """
     Create Spanish and English landing pages.
@@ -183,16 +203,13 @@ def get_or_create_landing_pages():
             _map['slug'],
             _map['parent'],
             language=language)
-        landing_page.has_unpublished_changes = True
         if _map['hero']:
             stream_block = landing_page.header.stream_block
             landing_page.header = StreamValue(
                 stream_block,
                 _map['hero'],
                 is_lazy=True)
-        revision = landing_page.save_revision()
-        landing_page.save()
-        revision.publish()
+        prep_page(landing_page)
         time.sleep(1)
         counter += 1
 
@@ -232,10 +249,7 @@ def get_or_create_search_results_pages():
             _map['parent'])
         if _map['language']:
             results_page.language = _map['language']
-        results_page.has_unpublished_changes = True
-        revision = results_page.save_revision()
-        results_page.save()
-        revision.publish()
+        prep_page(results_page)
         time.sleep(1)
         counter += 1
     print("Created {} search results pages".format(counter))
@@ -266,10 +280,7 @@ def get_or_create_category_pages():
                 parent,
                 language=language,
                 ask_category=cat)
-            cat_page.has_unpublished_changes = True
-            revision = cat_page.save_revision()
-            cat_page.save()
-            revision.publish()
+            prep_page(cat_page)
             time.sleep(1)
             counter += 1
     print("Created {} category pages".format(counter))
@@ -289,10 +300,7 @@ def get_or_create_audience_pages():
             parent,
             language='en',
             ask_audience=audience)
-        audience_page.has_unpublished_changes = True
-        revision = audience_page.save_revision()
-        audience_page.save()
-        revision.publish()
+        prep_page(audience_page)
         time.sleep(1)
         counter += 1
     print("Created {} audience pages".format(counter))
@@ -323,7 +331,9 @@ def create_answer_pages(queryset):
                         count_es += 1
                         sys.stdout.write('+')
                         sys.stdout.flush()
-                    revision = _page.get_latest_revision()
+                    _page.go_live_at = GO_LIVE_AT
+                    revision = _page.save_revision(
+                        approved_go_live_at=GO_LIVE_AT)
                     revision.publish()
     else:
         print("No Answer objects found in queryset.")
@@ -336,6 +346,8 @@ def create_pages():
     print("Creating Answer pages: . = English, + = Spanish")
     create_answer_pages(Answer.objects.all())
 
+
+# ANSWER AND METADATA CREATION
 
 def migrate_categories():
     """Move parent QuestionCategories into the new Category model"""
@@ -460,8 +472,10 @@ def migrate_audiences():
                 ASK_audience.objects.get(id=audience.id))
             audience_relation_count += 1
     print("Migrated {} Audience objects\n"
+          "Found {} already created\n"
           "Created {} Audience links".format(
               audiences_created,
+              Audience.objects.count(),
               audience_relation_count))
 
 
@@ -560,7 +574,7 @@ def set_featured_ids():
         answer.featured = True
         answer.featured_rank = FEATURED_ANSWER_IDS[answer.id]
         answer.save()
-    print "Marked {} answers as 'featured'".format(featured.count())
+    print("Marked {} answers as 'featured'".format(featured.count()))
 
 
 def run():

@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Escapes a string.
  * @param   {string} s The string to escape.
@@ -16,7 +14,7 @@ function stringEscape( s ) {
  *   True if string `s` contains special characters, false otherwise.
  */
 function stringValid( s ) {
-  return !( /[~`!.#$%\^&*+=\[\]\\';,/{}|\\":<>\?]/g ).test( s );
+  return !( /[~`!.#$%^&*+=[\]\\';,/{}|\\":<>?]/g ).test( s );
 }
 
 /**

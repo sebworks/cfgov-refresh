@@ -2,120 +2,165 @@
    Settings for webpack JavaScript bundling system.
    ========================================================================== */
 
-'use strict';
 
-var BannerFooterPlugin = require( 'banner-footer-webpack-plugin' );
-var path = require( 'path' );
-var paths = require( '../config/environment' ).paths;
-var scriptsManifest = require( '../gulp/utils/scripts-manifest' );
-var webpack = require( 'webpack' );
+const BROWSER_LIST = require( '../config/browser-list-config' );
+const envVars = require( '../config/environment' ).envvars;
+const NODE_ENV = envVars.NODE_ENV;
+const webpack = require( 'webpack' );
+const UglifyWebpackPlugin = require( 'uglifyjs-webpack-plugin' );
 
-// Constants.
-var JS_ROUTES_PATH = '/js/routes';
-var COMMON_BUNDLE_NAME = 'common.js';
 
-var modernConf = {
-  // jQuery is imported globally in the HTML head section in base.html,
-  // so it needs to be defined here as an external script to ignore for
-  // unmet dependency references.
-  externals: { jquery: 'jQuery' },
+// Constants
+const COMMON_BUNDLE_NAME = 'common.js';
+
+/* Commmon webpack 'module' option used in each configuration.
+   Runs code through Babel and uses global supported browser list. */
+const COMMON_MODULE_CONFIG = {
+  rules: [ {
+    test: /\.js$/,
+    exclude: {
+      test: /node_modules/,
+
+      /* The below regex will capture all node modules that start with `cf`
+        or atomic-component. Regex test: https://regex101.com/r/zizz3V/1/. */
+      exclude: /node_modules\/(?:cf.+|atomic-component)/
+    },
+    use: {
+      loader: 'babel-loader?cacheDirectory=true',
+      options: {
+        presets: [ [ 'babel-preset-env', {
+          targets: {
+            browsers: BROWSER_LIST.LAST_2_IE_9_UP
+          },
+          debug: false
+        } ] ]
+      }
+    }
+  } ]
+};
+
+/* Set warnings to true to show linter-style warnings.
+   Set mangle to false and beautify to true to debug the output code. */
+const COMMON_UGLIFY_CONFIG = new UglifyWebpackPlugin( {
   cache: true,
-  context: path.join( __dirname, '/../', paths.unprocessed, JS_ROUTES_PATH ),
-  entry: scriptsManifest.getDirectoryMap( paths.unprocessed + JS_ROUTES_PATH ),
-  module: {
-    rules: [ {
-      test: /\.js$/,
-      use: [ {
-        loader: 'babel-loader?cacheDirectory=true'
-      } ],
-      exclude: /node_modules/
-    } ]
-  },
+  parallel: true,
+  uglifyOptions: {
+    ie8: false,
+    ecma: 5,
+    warnings: false,
+    mangle: true,
+    output: {
+      comments: false,
+      beautify: false
+    }
+  }
+} );
+
+
+const COMMON_CHUNK_CONFIG = new webpack.optimize.SplitChunksPlugin( {
+  name: COMMON_BUNDLE_NAME
+} );
+
+const STATS_CONFIG = {
+  stats: {
+    entrypoints: false
+  }
+};
+
+const commonConf = {
+  cache: true,
+  module: COMMON_MODULE_CONFIG,
+  mode: 'production',
   output: {
-    path: path.join( __dirname, 'js' ),
     filename: '[name]'
   },
   plugins: [
-    new webpack.optimize.CommonsChunkPlugin( {
-      name: COMMON_BUNDLE_NAME
-    } ),
-    // Change `warnings` flag to true to view linter-style warnings at runtime.
-    new webpack.optimize.UglifyJsPlugin( {
-      compress: { warnings: false }
-    } ),
-    // Wrap JS in raw Jinja tags so included JS won't get parsed by Jinja.
-    new BannerFooterPlugin( '{% raw %}', '{% endraw %}', { raw: true } )
-  ]
+    COMMON_UGLIFY_CONFIG
+  ],
+  stats: STATS_CONFIG.stats
 };
 
-var ieConf = {
-  entry: paths.unprocessed + '/js/ie/common.ie.js',
-  output: {
-    filename: 'common.ie.js'
-  },
-  plugins: [
-    new webpack.optimize.UglifyJsPlugin( {
-      compress: { warnings: false }
-    } )
-  ]
-};
-
-var externalConf = {
-  entry: paths.unprocessed + JS_ROUTES_PATH + '/external-site/index.js',
+const externalConf = {
+  cache: true,
+  module: COMMON_MODULE_CONFIG,
+  mode: 'production',
   output: {
     filename: 'external-site.js'
   },
   plugins: [
-    new webpack.optimize.UglifyJsPlugin( {
-      compress: { warnings: false }
-    } )
-  ]
+    COMMON_UGLIFY_CONFIG
+  ],
+  stats: STATS_CONFIG.stats
 };
 
-var onDemandConf = {
-  context: path.join( __dirname, '/../', paths.unprocessed,
-                      JS_ROUTES_PATH + '/on-demand' ),
-  entry:   scriptsManifest.getDirectoryMap( paths.unprocessed +
-                                            JS_ROUTES_PATH + '/on-demand' ),
+const modernConf = {
+  cache: true,
+  mode: 'production',
+  module: COMMON_MODULE_CONFIG,
   output: {
-    path:     path.join( __dirname, 'js' ),
     filename: '[name]'
   },
   plugins: [
-    // Change warnings flag to true to view linter-style warnings at runtime.
-    new webpack.optimize.UglifyJsPlugin( {
-      compress: { warnings: false }
-    } )
-  ]
+    COMMON_CHUNK_CONFIG,
+    COMMON_UGLIFY_CONFIG
+  ],
+  stats: STATS_CONFIG.stats
 };
 
-var onDemandHeaderRawConf = {
-  context: path.join( __dirname, '/../', paths.unprocessed,
-                      JS_ROUTES_PATH + '/on-demand' ),
-  entry:   './header.js',
+const onDemandHeaderRawConf = {
+  module: COMMON_MODULE_CONFIG
+};
+
+const appsConf = {
+  cache: true,
+  module: COMMON_MODULE_CONFIG,
+  mode: 'production',
   output: {
-    path:     path.join( __dirname, 'js' ),
-    filename: '[name]'
-  }
+    filename: '[name]',
+    jsonpFunction: 'apps'
+  },
+  plugins: [
+    COMMON_CHUNK_CONFIG,
+    COMMON_UGLIFY_CONFIG
+  ],
+  stats: STATS_CONFIG.stats
 };
 
-var spanishConf = {
-  entry: paths.unprocessed + JS_ROUTES_PATH + '/on-demand/feedback-form.js',
+const spanishConf = {
+  cache: true,
+  module: COMMON_MODULE_CONFIG,
+  mode: 'production',
   output: {
     filename: 'spanish.js'
   },
   plugins: [
-    new webpack.optimize.UglifyJsPlugin( {
-      compress: { warnings: false }
-    } )
-  ]
+    COMMON_UGLIFY_CONFIG
+  ],
+  stats: STATS_CONFIG.stats
 };
 
-module.exports = {
-  onDemandHeaderRawConf: onDemandHeaderRawConf,
-  onDemandConf:          onDemandConf,
-  ieConf:                ieConf,
-  modernConf:            modernConf,
-  externalConf:          externalConf,
-  spanishConf:           spanishConf
+const devConf = {
+  devtool: 'inline-source-map',
+  mode: 'development',
+  module: COMMON_MODULE_CONFIG,
+  plugins: []
 };
+
+const configExports = {
+  commonConf,
+  devConf,
+  externalConf,
+  modernConf,
+  onDemandHeaderRawConf,
+  appsConf,
+  spanishConf
+};
+
+if ( NODE_ENV === 'development' ) {
+  // eslint-disable-next-line guard-for-in
+  for ( const key in configExports ) {
+    Object.assign( configExports[key], devConf );
+  }
+}
+
+module.exports = configExports;

@@ -1,12 +1,28 @@
-var Expandable = require( '../../organisms/Expandable' );
-var getBreakpointState = require( '../../modules/util/breakpoint-state' ).get;
+require( '../../modules/util/add-email-popup' );
+require( '../on-demand/ask-autocomplete' );
+require( '../on-demand/read-more' );
+const Analytics = require( '../../modules/Analytics' );
 
-var element = document.querySelector( '.o-expandable__read-more' );
+const analyticsData = document.querySelector( '.analytics-data' );
 
-if ( element && getBreakpointState().isBpXS ) {
-	var readMoreExpandable = new Expandable( element ).init();
-	readMoreExpandable.addEventListener( 'expandEnd', function () {
-		readMoreExpandable.destroy();
-		element.querySelector( '.o-expandable_content' ).style.height = '';
-	} );
+let answerID;
+let categoryName;
+
+if ( analyticsData ) {
+  answerID = analyticsData.getAttribute( 'data-answer-id' );
+  categoryName = analyticsData.getAttribute( 'data-category-name' );
+
+  if ( Analytics.tagManagerIsLoaded ) {
+    sendEvent();
+  } else {
+    Analytics.addEventListener( 'gtmLoaded', sendEvent );
+  }
+}
+
+function sendEvent() {
+  const eventData = Analytics.getDataLayerOptions(
+    '/askcfpb/' + answerID + '/', document.title, 'Virtual Pageview'
+  );
+  eventData.category = categoryName;
+  Analytics.sendEvent( eventData );
 }

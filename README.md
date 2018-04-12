@@ -1,8 +1,7 @@
 # cfgov-refresh
 
 [![Build Status](https://travis-ci.org/cfpb/cfgov-refresh.png?branch=master)](https://travis-ci.org/cfpb/cfgov-refresh?branch=master)
-[![Code Climate](https://codeclimate.com/github/cfpb/cfgov-refresh.png?branch=master)](https://codeclimate.com/github/cfpb/cfgov-refresh?branch=master)
-[![Coverage Status](https://coveralls.io/repos/github/cfpb/cfgov-refresh/badge.svg?branch=master)](https://coveralls.io/github/cfpb/cfgov-refresh?branch=master)
+[![codecov](https://codecov.io/gh/cfpb/cfgov-refresh/branch/master/graph/badge.svg)](https://codecov.io/gh/cfpb/cfgov-refresh)
 
 The redesign of the [www.consumerfinance.gov](http://www.consumerfinance.gov) website.
 This Django project includes the front-end assets and build tools,
@@ -18,19 +17,17 @@ Full [installation](https://cfpb.github.io/cfgov-refresh/installation/)
 and [usage](https://cfpb.github.io/cfgov-refresh/usage/) instructions
 are available in [our documentation](https://cfpb.github.io/cfgov-refresh).
 
-Ensure that Elasticsearch and MySQL are installed and that MySQL is
-either running or runnable by our
-[backend.sh script](https://github.com/cfpb/cfgov-refresh/blob/master/backend.sh#L41)
-and our
-[runserver.sh script](https://github.com/cfpb/cfgov-refresh/blob/master/runserver.sh#L12).
+Ensure that Python, Node, Docker, Docker Machine, Docker Compose, and imagemagick are installed. If you are using a mac with homebrew, you can run `homebrew-deps.sh` as described below:
 
 ```
 git clone git@github.com:cfpb/cfgov-refresh.git
 cd cfgov-refresh
+sh homebrew-deps.sh
 pip install virtualenv virtualenvwrapper
 npm install -g gulp
 source load-env.sh
 source setup.sh
+workon cfgov-refresh
 ./runserver.sh
 ```
 

@@ -4,6 +4,19 @@
     Consumer Financial Protection Bureau
 {%- endblock %}
 
+{% block preload %}
+    {{ super() }}
+    <link rel="preload"
+          href="{{ static('img/home-hero_sm.jpg') }}"
+          as="image"
+          media="(max-width: 600px)">
+    <link rel="preload"
+          href="{{ static('img/home-hero_lg.jpg') }}"
+          as="image"
+          media="(min-width: 601px)">
+{%- endblock %}
+
+
 {% block desc -%}
     Our vision is a consumer finance marketplace that works for American consumers,
     responsible providers, and the economy as a whole.
@@ -15,22 +28,22 @@
 
         {% from 'molecules/home-hero.html' import home_hero with context %}
         {{ home_hero( {
-            'heading': 'We’re on your side',
-            'body':    'We are the Consumer Financial Protection Bureau,
-                        a U.S. government agency that makes sure banks, lenders,
-                        and other financial companies treat you fairly.',
+            'heading': 'We’re the CFPB',
+            'body':    'The Consumer Financial Protection Bureau is a
+                        U.S. government agency that makes sure banks,
+                        lenders, and other financial companies treat you fairly.',
             'sm_img':  'img/home-hero_sm.jpg',
             'lg_img':  'img/home-hero_lg.jpg'
         } ) }}
 
         {% from 'molecules/info-unit.html' import info_unit with context %}
         <div class="o-well
-                    o-well__full">
-            <h2 class="header-slug">
-                <span class="header-slug_inner">
+                    o-well__home">
+            <header class="m-slug-header">
+                <h2 class="a-heading">
                     Featured
-                </span>
-            </h2>
+                </h2>
+            </header>
             <div class="content-l">
                 {% for block in page.header %}
                     <section class="content-l_col content-l_col-1-2">
@@ -80,7 +93,7 @@
                             'links': [
                                 {
                                     'text': 'Find answers to common questions',
-                                    'url':  '/askcfpb/'
+                                    'url':  '/ask-cfpb/'
                                 }
                             ]
                         } ) }}
@@ -102,7 +115,7 @@
                                     'url':  '/paying-for-college/'
                                 },
                                 {
-                                    'text': 'Owning a Home',
+                                    'text': 'Buying a House',
                                     'url':  '/owning-a-home/'
                                 },
                                 {
@@ -117,7 +130,6 @@
         </div>
 
         <div class="o-well
-                    o-well__full
                     o-well__home" >
             <h2>Standing up for you</h2>
             <div class="content-l
@@ -128,7 +140,7 @@
                     <div class="content-l">
                         <div class="content-l_col content-l_col-1-2__on-lg">
                             <div class="m-card">
-                                <h3 class="h1 m-card_heading">$11.8 billion in relief</h3>
+                                <h3 class="h1 m-card_heading">$11.9 billion in relief</h3>
                                 <p class="m-card_body">to consumers from our enforcement actions</p>
                             </div>
                         </div>
@@ -148,7 +160,7 @@
                     <div class="content-l">
                         <div class="content-l_col content-l_col-1-2__on-lg">
                             <div class="m-card">
-                                <h3 class="h1 m-card_heading">1.1 million+ complaints</h3>
+                                <h3 class="h1 m-card_heading">1.2 million+ complaints</h3>
                                 <p class="m-card_body">we’ve handled from consumers</p>
                             </div>
                         </div>
@@ -162,42 +174,40 @@
                 </section>
             </div>
 
-            <p style="margin-top: 30px;margin-bottom: 0;">Figures are updated quarterly. Last update on 02/28/2017</p>
+            <p style="margin-top: 30px;margin-bottom: 0;">Figures are updated quarterly. Last update on 07/20/2017</p>
         </div>
 
         <div class="wrapper">
             <div class="content_main content_main__home">
                 <h2>Latest updates</h2>
-                {% import 'macros/time.html' as time %}
                 <div class="content-l">
                     {% for sections in page.latest_updates %}
                         <section class="content-l_col
                                         content-l_col-1-3">
                             {% for block in sections.value %}
-                                <div class="m-related-posts_list-container">
+                                {# TODO: Refactor to not use m-list.
+                                         It's only used to make the links bold.
+                                         It should either be a list or not. #}
+                                <div class="m-related-posts_list-container m-list">
                                     <h3 class="h4">
                                          <span class="cf-icon cf-icon-{{ block.categories }}"></span>
                                         {{ page.get_category_name(block.categories) }}
                                     </h3>
-                                    <a class="list_link" href="{{ block.link.url }}">
+                                    <a class="m-list_link" href="{{ block.link.url }}">
                                         {{ block.link.text }}
                                     </a>
-                                    <p class="date">
-                                        <span class="datetime">
-                                            {% import 'macros/time.html' as time %}
-                                            <time class="datetime_date">
-                                                {{ time.render(block.date, {'date':true}) }}
-                                            </time>
-                                        </span>
+                                    <p class="a-date">
+                                        {% import 'macros/time.html' as time %}
+                                        {{ time.render(block.date, {'date':true}) }}
                                     </p>
                                 </div>
                             {% endfor %}
                         {% if loop.last %}
                             <div class="m-related-posts_list-container">
-                                <a class="jump-link
-                                          jump-link__underline"
+                                <a class="a-link
+                                          a-link__jump"
                                    href="/activity-log/">
-                                    See all activities
+                                    See all updates
                                 </a>
                             </div>
                         {% endif %}

@@ -2,34 +2,30 @@
    Scripts for Email Signup organism.
    ========================================================================== */
 
-'use strict';
 
-var FormSubmit = require( '../../organisms/FormSubmit.js' );
-var validators = require( '../../modules/util/validators' );
-var emailHelpers = require( '../../modules/util/email-popup-helpers' );
+const FormSubmit = require( '../../organisms/FormSubmit.js' );
+const validators = require( '../../modules/util/validators' );
 
-var BASE_CLASS = 'o-email-signup';
+const BASE_CLASS = 'o-email-signup';
+const language = document.body.querySelector( '.content' ).lang;
+const emailSignUps = document.body.querySelectorAll( '.' + BASE_CLASS );
+const emailSignUpsLength = emailSignUps.length;
+let formSubmit;
 
-function emailValidation ( fields ) {
-  if ( fields.email && !fields.email.value ) {
-    return 'Please enter an email address.';
-  }
-  return validators.email( fields.email ).msg;
+function emailValidation( fields ) {
+  return validators.email(
+    fields.email,
+    '',
+    { language: language }
+  ).msg;
 }
 
-var formSubmit = new FormSubmit(
-  document.body.querySelector( '.' + BASE_CLASS ),
-  BASE_CLASS,
-  { validator: emailValidation }
-);
+for ( let i = 0; i < emailSignUpsLength; i++ ) {
+  formSubmit = new FormSubmit(
+    emailSignUps[i],
+    BASE_CLASS,
+    { validator: emailValidation, language: language }
+  );
 
-formSubmit.init();
-
-formSubmit.addEventListener( 'success', function onEmailSignupSuccess( event ) {
-  var form = event.form;
-  var input = form.querySelector( 'input[name="code"]' );
-  var code = input.value;
-  if ( code === 'USCFPB_127' ) {
-    emailHelpers.recordEmailRegistration();
-  }
-} );
+  formSubmit.init();
+}

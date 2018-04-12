@@ -1,8 +1,9 @@
 import json
 
 from django.test import TestCase
-from wagtail.wagtailcore.models import Site
+
 from wagtail.tests.testapp.models import SimplePage
+from wagtail.wagtailcore.models import Site
 
 from v1.atomic_elements.organisms import AtomicTableBlock, RichTextTableInput
 
@@ -64,3 +65,13 @@ class TestAtomicTableBlock(TestCase):
         block = AtomicTableBlock()
         result = block.render(value)
         self.assertIn('href="/slug/"', result)
+
+    def test_render_header_with_unicode_characters(self):
+        value = {
+            'data': [[u'H\xebader 1', 'Header 2'], ['1', '2']],
+            'first_row_is_table_header': True,
+            'is_stacked': True,
+        }
+        block = AtomicTableBlock()
+        result = block.render(value)
+        self.assertIn(u'H\xebader', result)

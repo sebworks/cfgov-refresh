@@ -1,12 +1,24 @@
 import json
 import logging
 import os
-import requests
 
-from akamai.edgegrid import EdgeGridAuth
+from django.contrib.auth.models import User
+from django.db import models
+
 from wagtail.contrib.wagtailfrontendcache.backends import BaseBackend
 
+import requests
+from akamai.edgegrid import EdgeGridAuth
+
+
 logger = logging.getLogger(__name__)
+
+
+class AkamaiHistory(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    subject = models.CharField(max_length=2083)
+    message = models.CharField(max_length=255)
+    user = models.ForeignKey(User)
 
 
 class AkamaiBackend(BaseBackend):
@@ -61,6 +73,7 @@ class AkamaiBackend(BaseBackend):
         )
         payload['type'] = 'cpcode'
         payload['domain'] = 'production'
+        payload['action'] = 'invalidate'
 
         resp = requests.post(
             os.environ['AKAMAI_PURGE_ALL_URL'],

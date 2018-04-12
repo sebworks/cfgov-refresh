@@ -1,27 +1,29 @@
-'use strict';
+const gulpNotify = require( 'gulp-notify' );
 
-var notify = require( 'gulp-notify' );
+module.exports = function() {
+  const args = Array.prototype.slice.call( arguments );
+  let exitProcessParam = false;
+  let errorParam = args[0] || {};
+  const isWatching = this.tasks &&
+                     this.tasks.browsersync &&
+                     this.tasks.browsersync.done === false;
 
-module.exports = function( ) {
-  var args = Array.prototype.slice.call( arguments );
-  var exitProcessParam = false;
-  var errorParam = args[0] || {};
-
-  if( errorParam.hasOwnProperty( 'exitProcess' ) ) {
+  if ( errorParam.exitProcess ) {
     exitProcessParam = errorParam.exitProcess;
     errorParam = args[1];
   }
 
-  // Send error to notification center with gulp-notify
-  notify.onError( {
+  // Send error to notification center with gulp-notify.
+  gulpNotify.onError( {
     title:   'Compile Error',
     message: '<%= error %>'
   } ).call( this, errorParam );
 
-  // Keep gulp from hanging on this task
-  this.emit( 'end' );
-
-  if ( exitProcessParam === true ) {
+  if ( exitProcessParam === true && !isWatching ) {
     process.exit( 1 );
+  } else {
+
+    // Keep gulp from hanging on this task.
+    this.process.emit( 'end' );
   }
 };

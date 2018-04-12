@@ -1,12 +1,10 @@
-'use strict';
-
-var videoPlayer = element( by.css( '.video-player' ) );
+const videoPlayer = element( by.css( '.video-player' ) );
 
 function _videoPlayerElement( selector ) {
   return videoPlayer.element( by.css( selector ) );
 }
 
-var VideoPlayer = {
+const VideoPlayer = {
 
   videoPlayerCloseButton: _videoPlayerElement( '.video-player_close-btn' ),
 
@@ -16,7 +14,7 @@ var VideoPlayer = {
   videoPlayerIframeContainer:
     _videoPlayerElement( '.video-player_iframe-container' ),
 
-  getVideoPlayerIframe: function getVideoPlayerIframe( ) {
+  getVideoPlayerIframe: function getVideoPlayerIframe() {
     return _videoPlayerElement( '.video-player_iframe' );
   },
 

@@ -1,11 +1,11 @@
 import logging
+from six.moves.urllib.parse import urlsplit
 
-from django.core.exceptions import PermissionDenied
 from django.conf import settings
+from django.conf.urls import url
+from django.core.exceptions import PermissionDenied
 from django.core.urlresolvers import reverse
 from django.utils.html import escape, format_html_join
-
-from urlparse import urlsplit
 
 from wagtail.wagtailadmin.menu import MenuItem
 from wagtail.wagtailcore import hooks
@@ -62,9 +62,11 @@ def editor_js():
 @hooks.register('insert_editor_css')
 def editor_css():
     css_files = [
+        'css/general-enhancements.css',
         'css/table-block.css',
-        'css/richtext.css',
-        'css/bureau-structure.css'
+        'css/bureau-structure.css',
+        'css/heading-block.css',
+        'css/info-unit-group.css',
     ]
     css_includes = format_html_join(
         '\n',
@@ -137,7 +139,7 @@ class RelativePageLinkHandler(PageLinkHandler):
 
     Pages rendered with this handler should never be rendered like this:
 
-        <a href="http://my.domain/path/to/page">foo</a>
+        <a href="https://my.domain/path/to/page">foo</a>
 
     In standard Wagtail behavior, pages will be rendered with an absolute URL
     if an installation has multiple Wagtail Sites. In our current custom usage
@@ -176,3 +178,26 @@ class RelativePageLinkHandler(PageLinkHandler):
 @hooks.register('register_rich_text_link_handler')
 def register_cfgov_link_handler():
     return ('page', RelativePageLinkHandler)
+
+
+@hooks.register('register_admin_menu_item')
+def register_frank_menu_item():
+    return MenuItem('CDN Tools',
+                    reverse('manage-cdn'),
+                    classnames='icon icon-cogs',
+                    order=10000)
+
+
+@hooks.register('register_admin_urls')
+def register_flag_admin_urls():
+    handler = 'v1.admin_views.manage_cdn'
+    return [url(r'^cdn/$', handler, name='manage-cdn'), ]
+
+
+@hooks.register('before_serve_page')
+def serve_latest_draft_page(page, request, args, kwargs):
+    if page.pk in settings.SERVE_LATEST_DRAFT_PAGES:
+        latest_draft = page.get_latest_revision_as_page()
+        response = latest_draft.serve(request, *args, **kwargs)
+        response['Serving-Wagtail-Draft'] = '1'
+        return response

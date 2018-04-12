@@ -1,11 +1,13 @@
-
 import os
 import sys
 
 from django.conf import global_settings
+from django.utils.translation import ugettext_lazy as _
+
 from unipath import Path
 
 from ..util import admin_emails
+
 
 # Repository root is 4 levels above this file
 REPOSITORY_ROOT = Path(__file__).ancestor(4)
@@ -33,6 +35,7 @@ USE_ETAGS = True
 # Application definition
 
 INSTALLED_APPS = (
+    'permissions_viewer',
     'wagtail.wagtailcore',
     'wagtail.wagtailadmin',
     'wagtail.wagtaildocs',
@@ -53,16 +56,20 @@ INSTALLED_APPS = (
     'modelcluster',
     'compressor',
     'taggit',
+    'wagtailinventory',
     'wagtailsharing',
     'flags',
+    'watchman',
     'haystack',
-
+    'ask_cfpb',
+    'agreements',
     'overextends',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    "django.contrib.sitemaps",
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'storages',
@@ -72,34 +79,30 @@ INSTALLED_APPS = (
     'sheerlike',
     'legacy',
     'django_extensions',
-    'reversion',
-    'tinymce',
     'jobmanager',
-    'ccdb5'
+    'wellbeing',
+    'search',
 )
 
-if DEPLOY_ENVIRONMENT == 'build':
-    INSTALLED_APPS += ('ask_cfpb',)
-
 OPTIONAL_APPS = [
-    {'import': 'noticeandcomment', 'apps': ('noticeandcomment',)},
     {'import': 'comparisontool', 'apps': ('comparisontool', 'haystack',)},
     {'import': 'paying_for_college',
      'apps': ('paying_for_college', 'haystack',)},
-    {'import': 'agreements', 'apps': ('agreements', 'haystack',)},
-    {'import': 'knowledgebase', 'apps': ('knowledgebase', 'haystack',)},
-    {'import': 'selfregistration', 'apps': ('selfregistration',)},
     {'import': 'hud_api_replace', 'apps': ('hud_api_replace',)},
     {'import': 'retirement_api', 'apps': ('retirement_api',)},
     {'import': 'complaint', 'apps': ('complaint',
      'complaintdatabase', 'complaint_common',)},
     {'import': 'ratechecker', 'apps': ('ratechecker', 'rest_framework')},
     {'import': 'countylimits', 'apps': ('countylimits', 'rest_framework')},
-    {'import': 'regcore', 'apps': ('regcore', 'regcore_read', 'regcore_write')},
-    {'import': 'eregsip', 'apps': ('eregsip',)},
+    {'import': 'regcore', 'apps': ('regcore', 'regcore_read')},
     {'import': 'regulations', 'apps': ('regulations',)},
-    {'import': 'picard', 'apps': ('picard',)},
+    {'import': 'regulations3k', 'apps': ('regulations3k',)},
+    {'import': 'complaint_search', 'apps': ('complaint_search', 'rest_framework')},
+    {'import': 'ccdb5_ui', 'apps': ('ccdb5_ui', )},
+    {'import': 'teachers_digital_platform', 'apps': ('teachers_digital_platform', )},
 ]
+
+POSTGRES_APPS = []
 
 MIDDLEWARE_CLASSES = (
     'sheerlike.middleware.GlobalRequestMiddleware',
@@ -114,19 +117,14 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.security.SecurityMiddleware',
     'wagtail.wagtailcore.middleware.SiteMiddleware',
     'wagtail.wagtailredirects.middleware.RedirectMiddleware',
-    'v1.middleware.StagingMiddleware',
     'core.middleware.DownstreamCacheControlMiddleware'
 )
 
 CSP_MIDDLEWARE_CLASSES = ('csp.middleware.CSPMiddleware', )
 
-if ('CSP_ENFORCE' in os.environ or 'CSP_REPORT' in os.environ):
+if ('CSP_ENFORCE' in os.environ):
     MIDDLEWARE_CLASSES += CSP_MIDDLEWARE_CLASSES
 
-if 'CSP_REPORT' in os.environ:
-    CSP_REPORT_ONLY = True
-
-CSP_REPORT_URI = '/csp-report/'
 
 ROOT_URLCONF = 'cfgov.urls'
 
@@ -151,13 +149,13 @@ TEMPLATES = [
             V1_TEMPLATE_ROOT,
             V1_TEMPLATE_ROOT.child('_includes'),
             V1_TEMPLATE_ROOT.child('_layouts'),
-            PROJECT_ROOT.child('static_built')
+            PROJECT_ROOT.child('static_built'),
         ],
-        'APP_DIRS': False,
+        'APP_DIRS': True,
         'OPTIONS': {
             'environment': 'v1.environment',
             'extensions': [
-                'v1.jinja2tags.images',
+                'v1.jinja2tags.filters',
                 'wagtail.wagtailcore.jinja2tags.core',
                 'wagtail.wagtailadmin.jinja2tags.userbar',
                 'wagtail.wagtailimages.jinja2tags.images',
@@ -166,42 +164,28 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = 'cfgov.wsgi.application'
 
 # Admin Url Access
 ALLOW_ADMIN_URL = os.environ.get('ALLOW_ADMIN_URL', False)
 
-if 'collectstatic' in sys.argv:
-    COLLECTSTATIC = True
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': 'v1',
-        }
-    }
-else:
-    COLLECTSTATIC = False
-    MYSQL_ENGINE = 'django.db.backends.mysql'
-
-    # Database
-    # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
-
-    DATABASES = {
-        'default': {
-            'ENGINE': MYSQL_ENGINE,
-            'NAME': os.environ.get('MYSQL_NAME', 'v1'),
-            'USER': os.environ.get('MYSQL_USER', 'root'),
-            'PASSWORD': os.environ.get('MYSQL_PW', ''),
-            'HOST': os.environ.get('MYSQL_HOST', ''),  # empty string == localhost
-            'PORT': os.environ.get('MYSQL_PORT', ''),  # empty string == default
-        },
-    }
+DATABASE_ROUTERS = ['v1.db_router.CFGOVRouter']
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+
+LANGUAGES = (
+    ('en', _('English')),
+    ('es', _('Spanish')),
+)
+
+LOCALE_PATHS = (
+    os.path.join(PROJECT_ROOT, 'locale'),
+)
 
 TIME_ZONE = 'America/New_York'
 
@@ -222,6 +206,7 @@ STATIC_ROOT = os.environ.get('DJANGO_STATIC_ROOT', '/var/www/html/static')
 MEDIA_ROOT = os.environ.get('MEDIA_ROOT',
                             os.path.join(PROJECT_ROOT, 'f'))
 MEDIA_URL = '/f/'
+
 
 # List of finder classes that know how to find static files in
 # various locations.
@@ -253,7 +238,7 @@ EXTERNAL_URL_WHITELIST = (r'^https:\/\/facebook\.com\/cfpb$',
 EXTERNAL_LINK_PATTERN = r'https?:\/\/(?:www\.)?(?![^\?]+gov)(?!(content\.)?localhost).*'
 NONCFPB_LINK_PATTERN = r'(https?:\/\/(?:www\.)?(?![^\?]*(cfpb|consumerfinance).gov)(?!(content\.)?localhost).*)'
 FILES_LINK_PATTERN = r'https?:\/\/files\.consumerfinance.gov\/f\/\S+\.[a-z]+'
-DOWNLOAD_LINK_PATTERN = r'(\.pdf|\.doc|\.docx|\.xls|\.xlsx|\.csv|\.zip)$'
+DOWNLOAD_LINK_PATTERN = r'(?i)(\.pdf|\.doc|\.docx|\.xls|\.xlsx|\.csv|\.zip)$'
 
 # Wagtail settings
 
@@ -299,60 +284,104 @@ SHEER_ELASTICSEARCH_SETTINGS = \
     }
 
 
-# PDFReactor
-PDFREACTOR_LIB = os.environ.get('PDFREACTOR_LIB', '/opt/PDFreactor/wrappers/python/lib')
-
 #LEGACY APPS
 
 STATIC_VERSION = ''
-LEGACY_APP_URLS={'comparisontool':True,
-                 'agreements':True,
-                 'knowledgebase':True,
-                 'selfregistration':True,
-                 'hud_api_replace':True,
-                 'retirement_api':True,
-                 'paying_for_college':True,
-                 'complaint':True,
-                 'complaintdatabase':True,
-                 'ratechecker':True,
-                 'regcore':True,
-                 'regulations':True,
-                 'countylimits':True,
-                 'noticeandcomment':True}
 
 # DJANGO HUD API
 DJANGO_HUD_API_ENDPOINT= os.environ.get('HUD_API_ENDPOINT', 'http://localhost/hud-api-replace/')
 # in seconds, 2592000 == 30 days. Google allows no more than a month of caching
 DJANGO_HUD_GEODATA_EXPIRATION_INTERVAL = 2592000
 MAPBOX_ACCESS_TOKEN = os.environ.get('MAPBOX_ACCESS_TOKEN')
+HOUSING_COUNSELOR_S3_PATH_TEMPLATE = (
+    'a/assets/hud/{format}s/{zipcode}.{format}'
+)
 
 
 HAYSTACK_CONNECTIONS = {
     'default': {
-        'ENGINE': 'haystack.backends.elasticsearch2_backend.Elasticsearch2SearchEngine',
+        'ENGINE': 'search.backends.CFGOVElasticsearch2SearchEngine',
         'URL': SHEER_ELASTICSEARCH_SERVER,
-        'INDEX_NAME': os.environ.get('HAYSTACK_ELASTICSEARCH_INDEX', SHEER_ELASTICSEARCH_INDEX+'_haystack'),
-    },
+        'INDEX_NAME': os.environ.get('HAYSTACK_ELASTICSEARCH_INDEX',
+                                     SHEER_ELASTICSEARCH_INDEX+'_haystack'),
+        'INCLUDE_SPELLING': True,
+    }
 }
+ELASTICSEARCH_INDEX_SETTINGS = {
+    'settings': {
+        'analysis': {
+            'analyzer': {
+                'ngram_analyzer': {
+                    'type': 'custom',
+                    'tokenizer': 'lowercase',
+                    'filter': ['haystack_ngram']
+                },
+                'edgengram_analyzer': {
+                    'type': 'custom',
+                    'tokenizer': 'lowercase',
+                    'filter': ['haystack_edgengram']
+                },
+                'synonym_en' : {
+                    'tokenizer' : 'whitespace',
+                    'filter' : ['synonyms_en']
+                },
+                'synonym_es' : {
+                    'tokenizer' : 'whitespace',
+                    'filter' : ['synonyms_es']
+                },
+            },
+            'tokenizer': {
+                'haystack_ngram_tokenizer': {
+                    'type': 'nGram',
+                    'min_gram': 3,
+                    'max_gram': 15,
+                },
+                'haystack_edgengram_tokenizer': {
+                    'type': 'edgeNGram',
+                    'min_gram': 3,
+                    'max_gram': 15,
+                    'side': 'front'
+                },
+            },
+            'filter': {
+                'haystack_ngram': {
+                    'type': 'nGram',
+                    'min_gram': 3,
+                    'max_gram': 15
+                },
+                'haystack_edgengram': {
+                    'type': 'edgeNGram',
+                    'min_gram': 3,
+                    'max_gram': 15
+                },
+                'synonyms_en': {
+                    'type': 'synonym',
+                    'synonyms_path' : 'analysis/synonyms_en.txt'
+                },
+                'synonyms_es': {
+                    'type': 'synonym',
+                    'synonyms_path' : 'analysis/synonyms_es.txt'
+                },
+            }
+        }
+    }
+}
+ELASTICSEARCH_DEFAULT_ANALYZER = 'snowball'
 
 # S3 Configuration
+AWS_QUERYSTRING_AUTH = False  # do not add auth-related query params to URL
+AWS_S3_CALLING_FORMAT = 'boto.s3.connection.OrdinaryCallingFormat'
 AWS_S3_ROOT = os.environ.get('AWS_S3_ROOT', 'f')
+AWS_S3_SECURE_URLS = True  # True = use https; False = use http
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 
 if os.environ.get('S3_ENABLED', 'False') == 'True':
     DEFAULT_FILE_STORAGE = 'v1.s3utils.MediaRootS3BotoStorage'
-    AWS_S3_SECURE_URLS = True  # True = use https; False = use http
-    AWS_QUERYSTRING_AUTH = False  # False = do not use authentication-related query parameters for requests
     AWS_S3_ACCESS_KEY_ID = os.environ.get('AWS_S3_ACCESS_KEY_ID')
     AWS_S3_SECRET_ACCESS_KEY = os.environ.get('AWS_S3_SECRET_ACCESS_KEY')
-    AWS_S3_CALLING_FORMAT = 'boto.s3.connection.OrdinaryCallingFormat'
-
     MEDIA_URL = os.path.join(os.environ.get('AWS_S3_URL'), AWS_S3_ROOT, '')
 
 # Govdelivery
-
-GOVDELIVERY_USER = os.environ.get('GOVDELIVERY_USER')
-GOVDELIVERY_PASSWORD = os.environ.get('GOVDELIVERY_PASSWORD')
 GOVDELIVERY_ACCOUNT_CODE = os.environ.get('GOVDELIVERY_ACCOUNT_CODE')
 
 # LOAD OPTIONAL APPS
@@ -404,12 +433,6 @@ SHEER_SITES = {
     'owning-a-home':
         Path(os.environ.get('OAH_SHEER_PATH') or
              Path(REPOSITORY_ROOT, '../owning-a-home/dist')),
-    'fin-ed-resources':
-        Path(os.environ.get('FIN_ED_SHEER_PATH') or
-             Path(REPOSITORY_ROOT, '../fin-ed-resources/dist')),
-    'know-before-you-owe':
-        Path(os.environ.get('KBYO_SHEER_PATH') or
-             Path(REPOSITORY_ROOT, '../know-before-you-owe/dist')),
 }
 
 # The base URL for the API that we use to access layers and the regulation.
@@ -436,41 +459,8 @@ BACKENDS = {
     'diffs': 'regcore.db.django_models.DMDiffs',
 }
 
-CACHES = {
-    'default' : {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': '/tmp/eregs_cache',
-    },
-    'eregs_longterm_cache': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': '/tmp/eregs_longterm_cache',
-        'TIMEOUT': 60*60*24*15,     # 15 days
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000,
-        },
-    },
-    'api_cache':{
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'api_cache_memory',
-        'TIMEOUT': 3600,
-        'OPTIONS': {
-            'MAX_ENTRIES': 1000,
-        },
-    }
-}
-
-PICARD_SCRIPTS_DIRECTORY = os.environ.get('PICARD_SCRIPTS_DIRECTORY',REPOSITORY_ROOT.child('picard_scripts'))
-PICARD_TASK_RUNNER = os.environ.get('PICARD_TASK_RUNNER', 'shell')
-PICARD_JENKINS_HOST = os.environ.get('PICARD_JENKINS_HOST', None)
-PICARD_JENKINS_USER = os.environ.get('PICARD_JENKINS_USER', None)
-PICARD_JENKINS_PASSWORD = os.environ.get('PICARD_JENKINS_PASSWORD', None)
-PICARD_JENKINS_AKAMAI_FLUSH = os.environ.get('PICARD_JENKINS_AKAMAI_FLUSH', None)
-PICARD_JENKINS_DATA_EXPORT = os.environ.get('PICARD_JENKINS_DATA_EXPORT', None)
-PICARD_JENKINS_DATA_EXPORT_FROM_ENV = os.environ.get('PICARD_JENKINS_DATA_EXPORT_FROM_ENV', 'CONTENT')
-PICARD_JENKINS_DATA_EXPORT_TO_ENV = os.environ.get('PICARD_JENKINS_DATA_EXPORT_TO_ENV', 'PRODUCTION')
-
-# GovDelivery environment variables
-ACCOUNT_CODE = os.environ.get('GOVDELIVERY_ACCOUNT_CODE')
+# Regulations in eRegs that should display the update-in-progress message
+EREGS_REGULATION_UPDATES = ['1002', '1003', '1005', '1010', '1011', '1012', '1013', '1024', '1026']
 
 # Regulations.gov environment variables
 REGSGOV_BASE_URL = os.environ.get('REGSGOV_BASE_URL')
@@ -489,9 +479,6 @@ if ENABLE_AKAMAI_CACHE_PURGE:
     }
 
 
-# Staging site
-STAGING_HOSTNAME = os.environ.get('DJANGO_STAGING_HOSTNAME')
-
 # CSP Whitelists
 
 # These specify what is allowed in <script> tags.
@@ -500,6 +487,8 @@ CSP_SCRIPT_SRC = ("'self'",
                   "'unsafe-eval'",
                   '*.google-analytics.com',
                   '*.googletagmanager.com',
+                  'tagmanager.google.com',
+                  'optimize.google.com',
                   'ajax.googleapis.com',
                   'search.usa.gov',
                   'api.mapbox.com',
@@ -510,19 +499,29 @@ CSP_SCRIPT_SRC = ("'self'",
                   '*.youtube.com',
                   '*.ytimg.com',
                   'trk.cetrk.com',
-                  'universal.iperceptions.com')
+                  'universal.iperceptions.com',
+                  'sample.crazyegg.com',
+                  'about:',
+                  'connect.facebook.net',
+                  'www.federalregister.gov',
+                  )
 
 # These specify valid sources of CSS code
 CSP_STYLE_SRC = (
     "'self'",
     "'unsafe-inline'",
     'fast.fonts.net',
-    'api.mapbox.com')
+    'tagmanager.google.com',
+    'optimize.google.com',
+    'api.mapbox.com',
+    'fonts.googleapis.com',)
 
 # These specify valid image sources
 CSP_IMG_SRC = (
     "'self'",
     's3.amazonaws.com',
+    'www.gstatic.com',
+    'ssl.gstatic.com',
     'stats.g.doubleclick.net',
     'files.consumerfinance.gov',
     'img.youtube.com',
@@ -531,75 +530,167 @@ CSP_IMG_SRC = (
     'searchstats.usa.gov',
     'gtrk.s3.amazonaws.com',
     '*.googletagmanager.com',
+    'tagmanager.google.com',
+    'maps.googleapis.com',
+    'optimize.google.com',
     'api.mapbox.com',
     '*.tiles.mapbox.com',
-    'data:')
+    'stats.search.usa.gov',
+    'data:',
+    'www.facebook.com',
+    'www.gravatar.com')
 
 # These specify what URL's we allow to appear in frames/iframes
 CSP_FRAME_SRC = (
     "'self'",
     '*.googletagmanager.com',
     '*.google-analytics.com',
+    'optimize.google.com',
     'www.youtube.com',
     '*.doubleclick.net',
-    'universal.iperceptions.com')
+    'universal.iperceptions.com',
+    'www.facebook.com',
+    'staticxx.facebook.com')
 
 # These specify where we allow fonts to come from
-CSP_FONT_SRC = ("'self'", 'fast.fonts.net')
+CSP_FONT_SRC = ("'self'", "data:", "fast.fonts.net", "fonts.google.com", "fonts.gstatic.com")
 
 # These specify hosts we can make (potentially) cross-domain AJAX requests to.
 CSP_CONNECT_SRC = ("'self'",
                    '*.tiles.mapbox.com',
                    'bam.nr-data.net',
+                   'files.consumerfinance.gov',
+                   's3.amazonaws.com',
                    'api.iperceptions.com')
 
+# Feature flags
+# All feature flags must be listed here with a dict of any hard-coded
+# conditions or an empty dict. If the conditions dict is empty the flag will
+# only be enabled if database conditions are added.
 FLAGS = {
+    # Ask CFPB search spelling correction support
+    # When enabled, spelling suggestions will appear in Ask CFPB search and
+    # will be used when the given search term provides no results.
+	'ASK_SEARCH_TYPOS': {},
+
     # Beta banner, seen on beta.consumerfinance.gov
     # When enabled, a banner appears across the top of the site proclaiming
     # "This beta site is a work in progress."
-    'BETA_NOTICE': {},
+    'BETA_NOTICE': {
+        'site': 'beta.consumerfinance.gov',
+    },
+
+    # When enabled, include a recruitment code comment in the base template.
+    'CFPB_RECRUITING': {},
+
+    # When enabled, display a "techical issues" banner on /complaintdatabase
+    'CCDB_TECHNICAL_ISSUES': {},
+
+    # When enabled, use Wagtail for /company-signup/ (instead of selfregistration app)
+    'WAGTAIL_COMPANY_SIGNUP': {},
 
     # IA changes to mega menu for user testing
     # When enabled, the mega menu under "Consumer Tools" is arranged by topic
     'IA_USER_TESTING_MENU': {},
 
-    # Email pop-up "nudgy guy" for Owning a Home
-    # When enabled, an modal email sign-up prompt appears at the bottom of
-    # /owning-a-home when scrolling.
-    'EMAIL-POPUP': {},
-
     # Fix for margin-top when using the text inset
     # When enabled, the top margin of full-width text insets is increased
     'INSET_TEST': {},
 
-    # Footer link for the Office of Administrative Adjudication
-    # When enabled, a link to "Administrative Adjudication" appears in the
-    # footer
-    'OAA_FOOTER_LINK': {},
-
-    # Transition of "About Us" to Wagtail
-    # When enabled, the "About Us" pages are served from Wagtail
-    'WAGTAIL_ABOUT_US': {},
-
-    # Transition of "Doing Business with Us" to Wagtail
-    # When enabled, the "Doing Business With Us" pages are served from Wagtail
-    'WAGTAIL_DOING_BUSINESS_WITH_US': {},
-
-    # Transition of /compltain to Wagtail
-    # When enabled, the "Submit a complaint" page is served from Wagtail
-    'MOSAIC_COMPLAINTS': {},
-
-    # Migration of Ask CFPB to Wagtail
-    # When enabled, Ask CFPB is served from Wagtail
-    'WAGTAIL_ASK_CFPB': {
-        'boolean': True if DEPLOY_ENVIRONMENT in ['build'] else False
-    },
+    # When enabled, serves `/es/` pages from this
+    # repo ( excluding /obtener-respuestas/ pages ).
+    'ES_CONV_FLAG': {},
 
     # The next version of the public consumer complaint database
     'CCDB5_RELEASE': {},
+
+    # To be enabled when mortgage-performance data visualizations go live
+    'MORTGAGE_PERFORMANCE_RELEASE': {},
+
+    # To be enabled when owning-a-home/explore-rates is de-sheered.
+    'OAH_EXPLORE_RATES': {},
+
+    # To be enabled when owning-a-home/closing-disclosure/
+    # and owning-a-home/loan-estimate/ are de-sheered.
+    'OAH_FORM_EXPLAINERS': {},
+    
+    # To be enabled when journey pages are released in Wagtail.
+    'OAH_JOURNEY': {},
+
+    # To be enabled while journey sources page is migrated to Wagtail.
+    'OAH_JOURNEY_SHEER_SOURCE_PAGE': {},
 
     # Google Optimize code snippets for A/B testing
     # When enabled this flag will add various Google Optimize code snippets.
     # Intended for use with path conditions.
     'AB_TESTING': {},
+
+    # Email popups.
+    'EMAIL_POPUP_OAH': {'boolean': True},
+    'EMAIL_POPUP_DEBT': {'boolean': True},
+
+    # The release of new Whistleblowers content/pages
+    'WHISTLEBLOWER_RELEASE': {},
+
+    # Search.gov API-based site-search
+    'SEARCH_DOTGOV_API': {},
+
+    # The release of the new Financial Coaching pages
+    'FINANCIAL_COACHING': {},
+
+    # Teacher's Digital Platform
+    'TDP_RELEASE': {},
+
+    # Ping google on page publication in production only
+    'PING_GOOGLE_ON_PUBLISH': {
+        'boolean': DEPLOY_ENVIRONMENT == 'production'
+    },
+
+    'REGULATIONS3K': {
+        'boolean': DEPLOY_ENVIRONMENT == 'build'
+    }
+}
+
+
+# Watchman tokens, used to authenticate global status endpoint
+WATCHMAN_TOKENS = os.environ.get('WATCHMAN_TOKENS', os.urandom(32))
+
+# This specifies what checks Watchman should run and include in its output
+# https://github.com/mwarkentin/django-watchman#custom-checks
+WATCHMAN_CHECKS = (
+    'watchman.checks.databases',
+    'watchman.checks.storage',
+    'watchman.checks.caches',
+    'alerts.checks.check_clock_drift',
+)
+
+# Used to check server's time against in check_clock_drift
+NTP_TIME_SERVER = 'north-america.pool.ntp.org'
+
+# If server's clock drifts from NTP by more than specified offset
+# (in seconds), check_clock_drift will fail
+MAX_ALLOWED_TIME_OFFSET = 5
+
+# Search.gov values
+SEARCH_DOT_GOV_AFFILIATE = os.environ.get('SEARCH_DOT_GOV_AFFILIATE')
+SEARCH_DOT_GOV_ACCESS_KEY = os.environ.get('SEARCH_DOT_GOV_ACCESS_KEY')
+
+# We want the ability to serve the latest drafts of some pages on beta.
+# This value is read by v1.wagtail_hooks.
+SERVE_LATEST_DRAFT_PAGES = []
+if DEPLOY_ENVIRONMENT == 'beta':
+    SERVE_LATEST_DRAFT_PAGES = [1288,1286,3273]
+
+# Email popup configuration. See v1.templatetags.email_popup.
+EMAIL_POPUP_URLS = {
+    'debt': [
+        '/ask-cfpb/what-is-a-statute-of-limitations-on-a-debt-en-1389/',
+        '/ask-cfpb/what-is-the-best-way-to-negotiate-a-settlement-with-a-debt-collector-en-1447/',
+        '/ask-cfpb/what-should-i-do-when-a-debt-collector-contacts-me-en-1695/',
+        '/consumer-tools/debt-collection/',
+    ],
+    'oah': [
+        '/owning-a-home/',
+        '/owning-a-home/mortgage-estimate/',
+    ],
 }

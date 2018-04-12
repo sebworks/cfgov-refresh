@@ -28,10 +28,10 @@
         <div class="form-l_col
                     form-l_col-1
                     u-mb0">
-            <legend class="form-label-header">
+            <legend class="a-legend">
                 {{ settings.legend }}
-                {%- if options.required -%}
-                    * <span class="u-visually-hidden">Required</span>
+                {%- if options.required == False -%}
+                    <small class="a-label_helper">(optional)</small>
                 {%- endif -%}
             </legend>
         </div>

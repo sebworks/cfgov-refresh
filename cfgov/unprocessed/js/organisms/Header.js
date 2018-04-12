@@ -1,11 +1,8 @@
-'use strict';
-
 // Required modules.
-var atomicHelpers = require( '../modules/util/atomic-helpers' );
-var GlobalBanner = require( '../molecules/GlobalBanner.js' );
-var GlobalSearch = require( '../molecules/GlobalSearch.js' );
-var MegaMenu = require( '../organisms/MegaMenu.js' );
-var standardType = require( '../modules/util/standard-type' );
+const atomicHelpers = require( '../modules/util/atomic-helpers' );
+const GlobalSearch = require( '../molecules/GlobalSearch.js' );
+const MegaMenu = require( '../organisms/MegaMenu.js' );
+const standardType = require( '../modules/util/standard-type' );
 
 /**
  * Header
@@ -19,14 +16,13 @@ var standardType = require( '../modules/util/standard-type' );
  */
 function Header( element ) {
 
-  var BASE_CLASS = 'o-header';
+  const BASE_CLASS = 'o-header';
 
-  var _dom = atomicHelpers.checkDom( element, BASE_CLASS );
+  const _dom = atomicHelpers.checkDom( element, BASE_CLASS );
 
-  var _globalbanner;
-  var _globalSearch;
-  var _megaMenu;
-  var _overlay;
+  let _globalSearch;
+  let _megaMenu;
+  let _overlay;
 
   /**
    * @param {HTMLNode} overlay
@@ -37,16 +33,6 @@ function Header( element ) {
   function init( overlay ) {
     if ( !atomicHelpers.setInitFlag( _dom ) ) {
       return standardType.UNDEFINED;
-    }
-
-    // TODO: Investigate a better method of handling optional elements.
-    //       Banner is optional, so we don't want to throw a nice error
-    //       when its DOM isn't found.
-    try {
-      _globalbanner = new GlobalBanner( _dom );
-      _globalbanner.init();
-    } catch ( err ) {
-      // No Banner to initialize.
     }
 
     // Semi-opaque overlay that shows over the content when the menu flies out.

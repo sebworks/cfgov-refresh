@@ -10,7 +10,9 @@ services:
 
 addons:
   postgresql: "9.6"
-  chrome: beta
+  apt:
+    packages:
+      - google-chrome-stable
 
 cache:
   pip: true

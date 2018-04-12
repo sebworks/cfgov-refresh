@@ -13,6 +13,6 @@ elif [ "$RUNTEST" == "backend" ]; then
     tox -e missing-migrations
     bash <(curl -s https://codecov.io/bash) -F backend
 elif [ "$RUNTEST" == "acceptance" ]; then
-    google-chrome-stable --headless --disable-gpu http://localhost &
+    google-chrome-stable --headless --no-sandbox --disable-gpu http://localhost &
     gulp test:acceptance
 fi

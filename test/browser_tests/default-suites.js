@@ -61,7 +61,7 @@ const defaultSuites = {
     {
       browserName:   'chrome',
       chromeOptions: {
-        args: [ '--headless', '--disable-gpu', '--no-sandbox' ]
+        args: [ '--headless', '--disable-gpu' ]
       },
       maxDuration: 10800
     }

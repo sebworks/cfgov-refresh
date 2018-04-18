@@ -49,7 +49,6 @@ jobs:
   include:
     - stage: run tests
       env: RUNTEST=frontend
-    - env: RUNTEST=backend
       deploy:
         provider: pages
         local_dir: site

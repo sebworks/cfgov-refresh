@@ -16,7 +16,6 @@ backend() {
 echo "installing $RUNTEST dependencies"
 if [ "$RUNTEST" == "frontend" ]; then
    	frontend
-    backend
 elif [ "$RUNTEST" == "backend" ]; then
     backend
 fi

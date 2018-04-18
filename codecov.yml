@@ -19,8 +19,6 @@ coverage:
     patch:
       default:
         target: 100%
-  ignore:
-    - node_modules
 
 flags:
   backend:
@@ -28,4 +26,4 @@ flags:
       - cfgov/**/*.py
   frontend:
     paths:
-      - cfgov/**/*.js
+      - cfgov/unprocessed/**/*.js

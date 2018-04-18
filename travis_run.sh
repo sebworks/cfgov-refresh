@@ -5,7 +5,7 @@ set -ex
 
 echo "running $RUNTEST tests"
 if [ "$RUNTEST" == "frontend" ]; then
-    gulp test --travis
+    gulp test --travis --headless
     bash <(curl -s https://codecov.io/bash) -F frontend
 elif [ "$RUNTEST" == "backend" ]; then
     tox -e lint
@@ -15,6 +15,4 @@ elif [ "$RUNTEST" == "backend" ]; then
 
     pip install -r requirements/manual.txt
     mkdocs build
-elif [ "$RUNTEST" == "acceptance" ]; then
-    gulp test:acceptance --headless
 fi
